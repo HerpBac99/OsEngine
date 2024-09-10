@@ -11,13 +11,14 @@ using System.Windows.Forms.Integration;
 using OsEngine.Language;
 using OsEngine.OsTrader.Panels;
 using OsEngine.Layout;
-using System.Windows.Forms.DataVisualization.Charting;
 
 namespace OsEngine.Entity
 {
     public partial class ParemetrsUi
     {
         private List<IIStrategyParameter> _parameters;
+
+        BotPanel _panel;
 
         public ParemetrsUi(List<IIStrategyParameter> parameters, ParamGuiSettings settings, BotPanel panel)
         {
@@ -29,6 +30,7 @@ namespace OsEngine.Entity
             Width = (double)settings.Width;
 
             _parameters = parameters;
+            _panel = panel;
 
             ButtonAccept.Content = OsLocalization.Entity.ButtonAccept;
             ButtonUpdate.Content = OsLocalization.Entity.ButtonUpdate;
@@ -80,20 +82,33 @@ namespace OsEngine.Entity
 
         private void ParemetrsUi_Closed(object sender, EventArgs e)
         {
-            this.Closed -= ParemetrsUi_Closed;
-            _parameters = null;
-
-            if(_tabs != null)
+            try
             {
-                for (int i = 0;i < _tabs.Count; i++)
+                this.Closed -= ParemetrsUi_Closed;
+                _parameters = null;
+
+                if (_tabs != null)
                 {
-                    _tabs[i].Dispose();
+                    for (int i = 0; i < _tabs.Count; i++)
+                    {
+                        _tabs[i].Dispose();
+                        _tabs[i].ErrorEvent -= Painter_ErrorEvent;
+                    }
+
+                    _tabs.Clear();
+                    _tabs = null;
                 }
-                _tabs.Clear();
-                _tabs = null;
+
+                _panel = null;
             }
-
-
+            catch(Exception ex)
+            {
+                if(_panel != null)
+                {
+                    _panel.SendNewLogMessage(ex.ToString(),Logging.LogMessageType.Error);
+                    _panel = null;
+                }
+            }
         }
 
         List<List<IIStrategyParameter>> GetParamSortedByTabName()
@@ -141,28 +156,55 @@ namespace OsEngine.Entity
 
         private void CreateTab(List<IIStrategyParameter> par, string tabName)
         {
-            ParamTabPainter painter = new ParamTabPainter(par, tabName, TabControlSettings);
-            _tabs.Add(painter);
+            try
+            {
+                ParamTabPainter painter = new ParamTabPainter(par, tabName, TabControlSettings);
+                painter.ErrorEvent += Painter_ErrorEvent;
+                _tabs.Add(painter);
+            }
+            catch(Exception ex)
+            {
+                _panel?.SendNewLogMessage(ex.ToString(),Logging.LogMessageType.Error);
+            }
         }
 
         List<ParamTabPainter> _tabs = new List<ParamTabPainter>();
 
         private void ButtonAccept_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            for (int i = 0; i < _tabs.Count; i++)
+            try
             {
-                _tabs[i].Save();
-            }
+                for (int i = 0; i < _tabs.Count; i++)
+                {
+                    _tabs[i].Save();
+                }
 
-            Close();
+                Close();
+            }
+            catch (Exception ex)
+            {
+                _panel?.SendNewLogMessage(ex.ToString(), Logging.LogMessageType.Error);
+            }
         }
 
         private void ButtonUpdate_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            for (int i = 0; i < _tabs.Count; i++)
+            try
             {
-                _tabs[i].Save();
+                for (int i = 0; i < _tabs.Count; i++)
+                {
+                    _tabs[i].Save();
+                }
             }
+            catch (Exception ex)
+            {
+                _panel?.SendNewLogMessage(ex.ToString(), Logging.LogMessageType.Error);
+            }
+        }
+
+        private void Painter_ErrorEvent(string error)
+        {
+            _panel?.SendNewLogMessage(error,Logging.LogMessageType.Error);
         }
     }
 
@@ -186,30 +228,38 @@ namespace OsEngine.Entity
 
         public void Dispose()
         {
-            if(_grid != null 
-                && _grid.InvokeRequired)
+            try
             {
-                _grid.Invoke(new Action(Dispose));
-                return;
+                if (_grid != null
+                     && _grid.InvokeRequired)
+                {
+                    _grid.Invoke(new Action(Dispose));
+                    return;
+                }
+
+                _parameters = null;
+
+                if (_host != null)
+                {
+                    _host.Child = null;
+                    _host = null;
+                }
+
+                if (_grid != null)
+                {
+                    _grid.CellValueChanged -= _grid_CellValueChanged;
+                    _grid.CellClick -= _grid_Click;
+                    _grid.DataError -= _grid_DataError;
+
+                    _grid.Rows.Clear();
+                    DataGridFactory.ClearLinks(_grid);
+                    _grid = null;
+                }
             }
-
-             _parameters = null;
-
-            if(_host != null)
+            catch
             {
-                _host.Child = null;
-                _host = null;
+                // ignore
             }
-
-            if(_grid != null)
-            {
-                _grid.CellValueChanged -= _grid_CellValueChanged;
-                _grid.CellClick -= _grid_Click;
-                _grid.Rows.Clear();
-                DataGridFactory.ClearLinks(_grid);
-                _grid = null;
-            }
-
         }
 
         List<IIStrategyParameter> _parameters;
@@ -223,7 +273,8 @@ namespace OsEngine.Entity
         private void CreateTable()
         {
             _grid = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.CellSelect,
-                DataGridViewAutoSizeRowsMode.None);
+                DataGridViewAutoSizeRowsMode.AllCells);
+
             _grid.ScrollBars = ScrollBars.Vertical;
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
@@ -248,6 +299,7 @@ namespace OsEngine.Entity
 
             _grid.CellValueChanged += _grid_CellValueChanged;
             _grid.CellClick += _grid_Click;
+            _grid.DataError += _grid_DataError;
 
             _host.Child = _grid;
         }
@@ -280,11 +332,28 @@ namespace OsEngine.Entity
                     {
                         DataGridViewComboBoxCell cell = new DataGridViewComboBoxCell();
 
+                        bool isInArray = false;
+
                         for (int i2 = 0; i2 < param.ValuesString.Count; i2++)
                         {
                             cell.Items.Add(param.ValuesString[i2]);
+
+                            if(param.ValueString == param.ValuesString[i2])
+                            {
+                                isInArray = true;
+                            }
                         }
-                        cell.Value = param.ValueString;
+
+                        if(isInArray)
+                        {
+                            cell.Value = param.ValueString;
+                        }
+                        else
+                        {
+                            param.ValueString = param.ValuesString[0];
+                            cell.Value = param.ValueString;
+                        }
+
                         row.Cells.Add(cell);
                     }
                     else if (param.ValuesString.Count == 1
@@ -417,8 +486,18 @@ namespace OsEngine.Entity
                 return;
             }
 
-            StrategyParameterButton param = (StrategyParameterButton)_parameters[index];
-            param.Click();
+            try
+            {
+                StrategyParameterButton param = (StrategyParameterButton)_parameters[index];
+                param.Click();
+            }
+            catch(Exception ex)
+            {
+                if (ErrorEvent != null)
+                {
+                    ErrorEvent(ex.ToString());
+                }
+            }
         }
 
         private void _grid_CellValueChanged(object sender, DataGridViewCellEventArgs e)
@@ -499,13 +578,28 @@ namespace OsEngine.Entity
                         }
                     }				
                 }
-                catch
+                catch(Exception ex) 
                 {
-                    MessageBox.Show("Error. One of field have not valid param");
+                    if (ErrorEvent != null)
+                    {
+                        ErrorEvent("Parameters window exception:\n" 
+                            + _parameters[i].Name + "\n"
+                            + ex.ToString());
+                    }
                     return;
                 }
 
             }
         }
+
+        private void _grid_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            if (ErrorEvent != null)
+            {
+                ErrorEvent("Parameters window exception: " + e.ToString());
+            }
+        }
+
+        public event Action<string> ErrorEvent;
     }
 }

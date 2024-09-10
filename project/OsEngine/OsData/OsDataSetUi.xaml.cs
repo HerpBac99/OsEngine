@@ -82,6 +82,7 @@ namespace OsEngine.OsData
             CheckBoxTf2HourIsOn.IsChecked = set.BaseSettings.Tf2HourIsOn;
             CheckBoxTf4HourIsOn.IsChecked = set.BaseSettings.Tf4HourIsOn;
             CheckBoxTfTickIsOn.IsChecked = set.BaseSettings.TfTickIsOn;
+            CheckBoxTfDayIsOn.IsChecked = set.BaseSettings.TfDayIsOn;
             CheckBoxTfMarketDepthIsOn.IsChecked = set.BaseSettings.TfMarketDepthIsOn;
 
             List < ServerType > serverTypes = ServerMaster.ActiveServersTypes;
@@ -102,6 +103,7 @@ namespace OsEngine.OsData
             }
 
             ComboBoxSource.SelectionChanged += ComboBoxSource_SelectionChanged;
+
             DatePickerTimeStart.SelectedDate = _set.BaseSettings.TimeStart;
             DatePickerTimeEnd.SelectedDate = _set.BaseSettings.TimeEnd;
 
@@ -135,9 +137,6 @@ namespace OsEngine.OsData
 
             this.Activate();
             this.Focus();
-
-            DatePickerTimeStart.Language = XmlLanguage.GetLanguage(OsLocalization.CurLocalizationCode);
-            DatePickerTimeEnd.Language = XmlLanguage.GetLanguage(OsLocalization.CurLocalizationCode);
         }
 
         private void TextBoxFolderName_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -282,6 +281,7 @@ namespace OsEngine.OsData
                     CheckBoxTf1HourIsOn.IsEnabled = true;
                     CheckBoxTf2HourIsOn.IsEnabled = true;
                     CheckBoxTf4HourIsOn.IsEnabled = true;
+                    CheckBoxTfDayIsOn.IsEnabled = true;
 
                     CheckBoxTf1SecondIsOn.IsEnabled = false;
                     CheckBoxTf2SecondIsOn.IsEnabled = false;
@@ -316,6 +316,7 @@ namespace OsEngine.OsData
 
                     UpdComboBoxToPermission(CheckBoxTfMarketDepthIsOn,permission.DataFeedTfMarketDepthCanLoad);
                     UpdComboBoxToPermission(CheckBoxTfTickIsOn,permission.DataFeedTfTickCanLoad);
+                    UpdComboBoxToPermission(CheckBoxTfDayIsOn, permission.DataFeedTfDayCanLoad);
                 }
             }
         }
@@ -335,31 +336,25 @@ namespace OsEngine.OsData
         /// </summary>
         private void EnableControls(bool Enabled=true)
         {
-            CheckBoxTf1SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf2SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf5SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf10SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf15SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf20SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf30SecondIsOn.IsEnabled = Enabled;
-            CheckBoxTf1MinuteIsOn.IsEnabled = Enabled;
-            CheckBoxTf2MinuteIsOn.IsEnabled = Enabled;
-            CheckBoxTf5MinuteIsOn.IsEnabled = Enabled;
-            CheckBoxTf10MinuteIsOn.IsEnabled = Enabled;
-            CheckBoxTf15MinuteIsOn.IsEnabled = Enabled;
-            CheckBoxTf30MinuteIsOn.IsEnabled = Enabled;
-            CheckBoxTf1HourIsOn.IsEnabled = Enabled;
-            CheckBoxTf2HourIsOn.IsEnabled = Enabled;
-            CheckBoxTf4HourIsOn.IsEnabled = Enabled;
-            CheckBoxTfTickIsOn.IsEnabled = Enabled;
-            CheckBoxTfMarketDepthIsOn.IsEnabled = Enabled;
+            
             ComboBoxSource.IsEnabled = Enabled;
             DatePickerTimeStart.IsEnabled = Enabled;
             DatePickerTimeEnd.IsEnabled = Enabled;
-            CheckBoxNeadToUpDate.IsEnabled = Enabled;
+
             ButtonAddSecurity.IsEnabled = Enabled;
             ButtonDelSecurity.IsEnabled = Enabled;
             ComboBoxMarketDepthDepth.IsEnabled = Enabled;
+
+            if(Enabled == false)
+            {
+                StopUsePanelOne.Width = 338;
+                StopUsePanelTwo.Width = 125;
+            }
+            else
+            {
+                StopUsePanelOne.Width = 1;
+                StopUsePanelTwo.Width = 1;
+            }
         }
 
         /// <summary>
@@ -394,6 +389,8 @@ namespace OsEngine.OsData
             _set.BaseSettings.Tf2HourIsOn = CheckBoxTf2HourIsOn.IsChecked.Value;
             _set.BaseSettings.Tf4HourIsOn = CheckBoxTf4HourIsOn.IsChecked.Value;
             _set.BaseSettings.TfTickIsOn = CheckBoxTfTickIsOn.IsChecked.Value;
+            _set.BaseSettings.TfDayIsOn = CheckBoxTfDayIsOn.IsChecked.Value;
+
             _set.BaseSettings.TfMarketDepthIsOn = CheckBoxTfMarketDepthIsOn.IsChecked.Value;
             _set.BaseSettings.MarketDepthDepth = Convert.ToInt32(ComboBoxMarketDepthDepth.SelectedValue.ToString());
 
@@ -434,7 +431,7 @@ namespace OsEngine.OsData
         /// </summary>
         private void CreateSecuritiesTable()
         {
-            _grid = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.None);
+            _grid = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.AllCells);
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
             cell0.Style = _grid.DefaultCellStyle;

@@ -1,5 +1,4 @@
-﻿
-namespace OsEngine.Market.Servers.BingX.BingXFutures
+﻿namespace OsEngine.Market.Servers.BingX.BingXFutures
 {
     public class BingXFuturesServerPermission : IServerPermission
     {
@@ -98,7 +97,12 @@ namespace OsEngine.Market.Servers.BingX.BingXFutures
         {
             get { return true; }
         }
-        
+
+        public bool DataFeedTfDayCanLoad
+        {
+            get { return false; }
+        }
+
 
         #endregion
 
@@ -199,12 +203,12 @@ namespace OsEngine.Market.Servers.BingX.BingXFutures
 
         public bool CanQueryOrdersAfterReconnect
         {
-            get { return false; }
+            get { return true; }
         }
 
         public bool CanQueryOrderStatus
         {
-            get { return false; }
+            get { return true; }
         }
 
         #endregion

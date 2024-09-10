@@ -98,7 +98,12 @@
         {
             get { return true; }
         }
-        
+
+        public bool DataFeedTfDayCanLoad
+        {
+            get { return true; }
+        }
+
         #endregion
 
         #region Trade permission
@@ -180,12 +185,12 @@
 
         public bool CanQueryOrdersAfterReconnect
         {
-            get { return false; }
+            get { return true; }
         }
 
         public bool CanQueryOrderStatus
         {
-            get { return false; }
+            get { return true; }
         }
 
         #endregion

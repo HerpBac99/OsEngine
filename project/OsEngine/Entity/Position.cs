@@ -3,6 +3,7 @@
  * Ваши права на использование кода регулируются данной лицензией http://o-s-a.net/doc/license_simple_engine.pdf
 */
 
+using OsEngine.Language;
 using OsEngine.Market;
 using OsEngine.Market.Servers;
 using System;
@@ -448,6 +449,11 @@ namespace OsEngine.Entity
                 decimal volume = 0;
                 for (int i = 0; i < _closeOrders.Count; i++)
                 {
+                    if (_closeOrders[i] == null)
+                    {
+                        continue;
+                    }
+
                     decimal volumeEx = _closeOrders[i].VolumeExecute;
                     if (volumeEx != 0)
                     {
@@ -509,7 +515,12 @@ namespace OsEngine.Entity
                 }
                 
                 openOrder.TimeCancel = newOrder.TimeCancel;
-                openOrder.VolumeExecute = newOrder.VolumeExecute;
+  
+                if (openOrder.MyTrades == null ||
+                    openOrder.MyTrades.Count == 0)
+                { // если трейдов ещё нет, допускается установка значение исполненного объёма по записи в ордере
+                    //openOrder.VolumeExecute = newOrder.VolumeExecute;
+                }
 
                 if (openOrder.State == OrderStateType.Done 
                     && openOrder.TradesIsComing 
@@ -584,7 +595,12 @@ namespace OsEngine.Entity
                     closeOrder.TimeCallBack = newOrder.TimeCallBack;
                 }
                 closeOrder.TimeCancel = newOrder.TimeCancel;
-                closeOrder.VolumeExecute = newOrder.VolumeExecute;
+
+                if (closeOrder.MyTrades == null ||
+                   closeOrder.MyTrades.Count == 0)
+                { // если трейдов ещё нет, допускается установка значение исполненного объёма по записи в ордере
+                    closeOrder.VolumeExecute = newOrder.VolumeExecute;
+                }
 
                 if (closeOrder.State == OrderStateType.Done && OpenVolume == 0)
                 {
@@ -743,12 +759,13 @@ namespace OsEngine.Entity
                     return;
                 }
 
-                if (Direction == Side.Buy)
+                if (Direction == Side.Buy &&
+                    ask != 0)
                 {
                     ProfitOperationPersent = ask / entryPrice * 100 - 100;
                     ProfitOperationPunkt = ask - entryPrice;
                 }
-                else
+                else if(bid != 0)
                 {
                     ProfitOperationPersent = -(bid / entryPrice * 100 - 100);
                     ProfitOperationPunkt = entryPrice - bid;
@@ -992,6 +1009,69 @@ namespace OsEngine.Entity
             }
         }
 
+        public string PositionSpecification
+        {
+            get
+            {
+                string result = "";
+
+                result += OsLocalization.Trader.Label225 + ": " + Number + ", " 
+                    + OsLocalization.Trader.Label224 + ": " + State + ", "
+                    + OsLocalization.Trader.Label228 + ": " + Direction + "\n";
+
+                result += OsLocalization.Trader.Label102 + ": " + SecurityName + "\n";
+
+                if(ProfitPortfolioPunkt != 0)
+                {
+                    result += OsLocalization.Trader.Label404 + ": " + ProfitPortfolioPunkt + "\n";
+                }
+                
+                if(State != PositionStateType.OpeningFail)
+                {
+                    result += OsLocalization.Trader.Label400 + ": " + EntryPrice;
+
+                    if (State == PositionStateType.Done)
+                    {
+                        result += ", " + OsLocalization.Trader.Label401 + ": " + ClosePrice + " ";
+                    }
+
+                    result += "\n";
+
+                    result += OsLocalization.Trader.Label421 + ": " + TimeOpen.ToString(OsLocalization.CurCulture);
+
+                    if (State == PositionStateType.Done)
+                    {
+                        result += ", " + OsLocalization.Trader.Label420 + ": " + TimeClose.ToString(OsLocalization.CurCulture) + " ";
+                    }
+
+                    result += "\n";
+
+
+                }
+
+                if (OpenVolume == 0)
+                {
+                    result += OsLocalization.Trader.Label402 + ": " + MaxVolume + "\n";
+                }
+                else
+                {
+                    result += OsLocalization.Trader.Label403 + ": " + OpenVolume + "\n";
+                }
+
+                if (string.IsNullOrEmpty(SignalTypeOpen) == false)
+                {
+                    result += OsLocalization.Trader.Label405 + ": " + SignalTypeOpen + "\n";
+                }
+
+                if (State == PositionStateType.Done
+                    && string.IsNullOrEmpty(SignalTypeClose) == false)
+                {
+                    result += OsLocalization.Trader.Label406 + ": " + SignalTypeClose + "\n";
+                }
+
+                return result;
+            }
+        }
 
         // profit for the portfolio
         
@@ -1087,7 +1167,7 @@ namespace OsEngine.Entity
                     serverType == ServerType.Optimizer ||
                     serverType == ServerType.Miner)
                 {
-                    return false;
+                    return true;
                 }
 
                 if(serverType == ServerType.QuikDde

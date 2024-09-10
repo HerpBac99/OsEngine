@@ -9,6 +9,7 @@ using OsEngine.Entity;
 using OsEngine.OsTrader.Panels;
 using OsEngine.Robots;
 using System;
+using OsEngine.Logging;
 
 namespace OsEngine.OsOptimizer.OptimizerEntity
 {
@@ -40,8 +41,6 @@ namespace OsEngine.OsOptimizer.OptimizerEntity
                     {
                         continue;
                     }
-
-                    string starategy = _bots[i].GetNameStrategyType();
 
                     if (_bots[i].NameStrategyUniq == botName &&
                         _bots[i].GetNameStrategyType() == botType)
@@ -96,20 +95,28 @@ namespace OsEngine.OsOptimizer.OptimizerEntity
 
             while (true)
             {
-                Thread.Sleep(10);
-                if (MainWindow.ProccesIsWorked == false)
+                try
                 {
-                    return;
-                }
+                    Thread.Sleep(10);
+                    if (MainWindow.ProccesIsWorked == false)
+                    {
+                        return;
+                    }
 
-                if (_isActivate == false)
-                {
-                    continue;
-                }
+                    if (_isActivate == false)
+                    {
+                        continue;
+                    }
 
-                if (_botsToStart[num].Count != 0)
+                    if (_botsToStart[num].Count != 0)
+                    {
+                        Load(_botsToStart[num]);
+                    }
+                }
+                catch (Exception e)
                 {
-                    Load(_botsToStart[num]);
+                    SendLogMessage("Optimizer critical error. \n Can`t create bot. Error: " + e.ToString(),LogMessageType.Error);
+                    Thread.Sleep(1000);
                 }
             }
         }
@@ -120,12 +127,31 @@ namespace OsEngine.OsOptimizer.OptimizerEntity
             {
 
                 BotPanel bot = BotFactory.GetStrategyForName(_botType, names[0], _startProgramm, _isScript);
-                names.RemoveAt(0);
+
+                try
+                {
+                    names.RemoveAt(0);
+                }
+                catch
+                {
+                    // ignore
+                }
+             
                 lock (_botLocker)
                 {
                     _bots.Add(bot);
                 }
             }
         }
+
+        public void SendLogMessage(string message, LogMessageType type)
+        {
+            if (LogMessageEvent != null)
+            {
+                LogMessageEvent(message, type);
+            }
+        }
+
+        public event Action<string, LogMessageType> LogMessageEvent;
     }
 }

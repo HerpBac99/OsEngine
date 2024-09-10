@@ -657,7 +657,7 @@ namespace OsEngine.Market.Servers.GateIo.GateIoFutures
 
             int tfTotalMinutes = (int)interval.TotalMinutes;
 
-            int timeRange = tfTotalMinutes * 10000;
+            int timeRange = tfTotalMinutes * 900;
 
             DateTime maxStartTime = DateTime.Now.AddMinutes(-timeRange);
 
@@ -671,7 +671,7 @@ namespace OsEngine.Market.Servers.GateIo.GateIoFutures
             return candles;
         }
 
-        private int _limit = 1000;
+        private int _limit = 900;
 
         private string GetInterval(TimeSpan timeFrame)
         {
@@ -897,23 +897,21 @@ namespace OsEngine.Market.Servers.GateIo.GateIoFutures
                 {
                     if (ServerStatus == ServerConnectStatus.Disconnect)
                     {
+                        _timeLastSendPing = DateTime.Now;
                         Thread.Sleep(1000);
                         continue;
                     }
 
                     Thread.Sleep(3000);
 
-                    if (_webSocket != null && _webSocket.State == WebSocketState.Open)
+                    if (_webSocket != null && 
+                        _webSocket.State == WebSocketState.Open)
                     {
                         if (_timeLastSendPing.AddSeconds(30) < DateTime.Now)
                         {
                             SendPing();
                             _timeLastSendPing = DateTime.Now;
                         }
-                    }
-                    else
-                    {
-                        Dispose();
                     }
                 }
                 catch (Exception e)

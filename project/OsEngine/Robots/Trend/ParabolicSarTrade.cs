@@ -8,8 +8,9 @@ using System.Collections.Generic;
 using System.IO;
 using OsEngine.Charts.CandleChart.Indicators;
 using OsEngine.Entity;
-using OsEngine.Market;
+using OsEngine.Logging;
 using OsEngine.OsTrader.Panels;
+using OsEngine.OsTrader.Panels.Attributes;
 using OsEngine.OsTrader.Panels.Tab;
 
 namespace OsEngine.Robots.Trend
@@ -18,6 +19,7 @@ namespace OsEngine.Robots.Trend
     /// Trend strategy at the intersection of the ParabolicSar indicator
     /// Трендовая стратегия на пересечение индикатора ParabolicSar
     /// </summary>
+    [Bot("ParabolicSarTrade")]
     public class ParabolicSarTrade : BotPanel
     {
         public ParabolicSarTrade(string name, StartProgram startProgram)
@@ -42,8 +44,54 @@ namespace OsEngine.Robots.Trend
             Description = "Trend strategy at the intersection of the ParabolicSar indicator. " +
                 "if Price < lastSar - close position and open Short. " +
                 "if Price > lastSar - close position and open Long.";
-        }
 
+            //Подписка на получение событий/команд из телеграма - Subscribe to receive events/commands from Telegram
+            ServerTelegram.GetServer().TelegramCommandEvent += TelegramCommandHandler;
+            
+        }
+        //Последний режим работы бота перед выключением по команде
+        private BotTradeRegime _lastRegime = BotTradeRegime.Off;
+        
+        private void TelegramCommandHandler(string botName, Command cmd)
+        {
+            if (botName != null && !_tab.TabName.Equals(botName)) 
+                return;
+            
+            if (cmd == Command.StopAllBots || cmd == Command.StopBot)
+            {
+                _lastRegime = Regime;
+                Regime = BotTradeRegime.Off;
+                
+                SendNewLogMessage($"Changed Bot {_tab.TabName} Regime to Off " +
+                                  $"by telegram command {cmd}", LogMessageType.User);
+            }
+            else if (cmd == Command.StartAllBots || cmd == Command.StartBot)
+            {
+
+                if (_lastRegime != BotTradeRegime.Off)
+                {
+                    Regime = _lastRegime;
+                }
+                else
+                {
+                    Regime = BotTradeRegime.On;
+                }
+                
+                //changing bot mode to its previous state or On
+                SendNewLogMessage($"Changed bot {_tab.TabName} mode to state {Regime} " +
+                                  $"by telegram command {cmd}", LogMessageType.User);
+            }
+            else if (cmd == Command.CancelAllActiveOrders)
+            {
+                //Some logic for cancel all active orders
+            }
+            else if (cmd == Command.GetStatus)
+            {
+                SendNewLogMessage($"Bot {_tab.TabName} is {Regime}. Emulator - {_tab.EmulatorIsOn}, " +
+                                  $"Server Status - {_tab.ServerStatus}.", LogMessageType.User);
+            }
+        }
+        
         /// <summary>
         /// strategy name
         /// взять уникальное имя
@@ -165,6 +213,8 @@ namespace OsEngine.Robots.Trend
         /// </summary>
         private void Strateg_CandleFinishedEvent(List<Candle> candles)
         {
+            //SendNewLogMessage("Candle finished event", LogMessageType.User);
+
             if (Regime == BotTradeRegime.Off)
             {
                 return;
@@ -185,7 +235,6 @@ namespace OsEngine.Robots.Trend
                 for (int i = 0; i < openPositions.Count; i++)
                 {
                     LogicClosePosition(candles, openPositions[i]);
-
                 }
             }
 
@@ -245,7 +294,6 @@ namespace OsEngine.Robots.Trend
                     {
                         _tab.BuyAtLimit(VolumeFix, _lastPrice + Slipage);
                     }
-
                 }
             }
         }

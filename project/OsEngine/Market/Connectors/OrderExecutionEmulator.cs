@@ -9,9 +9,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using OsEngine.Entity;
-using OsEngine.Language;
-using OsEngine.Logging;
-using OsEngine.Market.Servers;
 
 namespace OsEngine.Market.Connectors
 {
@@ -283,7 +280,7 @@ namespace OsEngine.Market.Connectors
                 else //if (order.TypeOrder == OrderPriceType.Limit)
                 {
                     if (order.Side == Side.Buy &&
-                  order.Price >= _bestSell && _bestSell != 0)
+                        order.Price >= _bestSell && _bestSell != 0)
                     {
                         decimal price;
 
@@ -470,21 +467,31 @@ namespace OsEngine.Market.Connectors
         /// <param name="time"> time / время </param>
         public void ProcessBidAsc(decimal sell, decimal buy)
         {
-            if (sell == 0 || buy == 0)
+            if (sell == 0 
+                && buy == 0)
             {
                 return;
             }
 
-            if (buy > sell)
+            if(buy != 0 && sell != 0)
             {
-                _bestBuy = sell;
-                _bestSell = buy;
+                if (buy > sell)
+                {
+                    _bestBuy = sell;
+                    _bestSell = buy;
+                }
+                else
+                {
+                    _bestBuy = buy;
+                    _bestSell = sell;
+                }
             }
             else
             {
                 _bestBuy = buy;
                 _bestSell = sell;
             }
+
 
             for (int i = 0; ordersOnBoard != null && i < ordersOnBoard.Count; i++)
             {

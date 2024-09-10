@@ -5,6 +5,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using OsEngine.Language;
@@ -35,7 +37,26 @@ namespace OsEngine.PrimeSettings
                 if (Enum.TryParse(ComboBoxLocalization.SelectedItem.ToString(), out newType))
                 {
                     OsLocalization.CurLocalization = newType;
+                    Thread.CurrentThread.CurrentCulture = OsLocalization.CurCulture;
                 }
+            };
+
+            ComboBoxTimeFormat.Items.Add("H:mm:ss");
+            ComboBoxTimeFormat.Items.Add("h:mm:ss tt");
+            ComboBoxTimeFormat.SelectedItem = OsLocalization.LongTimePattern;
+            ComboBoxTimeFormat.SelectionChanged += delegate
+            {
+                OsLocalization.LongTimePattern = ComboBoxTimeFormat.SelectedItem.ToString();
+                Thread.CurrentThread.CurrentCulture = OsLocalization.CurCulture;
+            };
+
+            ComboBoxDateFormat.Items.Add("dd.MM.yyyy");
+            ComboBoxDateFormat.Items.Add("M/d/yyyy");
+            ComboBoxDateFormat.SelectedItem = OsLocalization.ShortDatePattern;
+            ComboBoxDateFormat.SelectionChanged += delegate
+            {
+                OsLocalization.ShortDatePattern = ComboBoxDateFormat.SelectedItem.ToString();
+                Thread.CurrentThread.CurrentCulture = OsLocalization.CurCulture;
             };
 
             CheckBoxExtraLogWindow.IsChecked = PrimeSettingsMaster.ErrorLogMessageBoxIsActiv;
@@ -47,6 +68,7 @@ namespace OsEngine.PrimeSettings
             AutoStartChb.IsChecked = PrimeSettingsMaster.AutoStartApi;
             TextBoxBotHeader.Text = PrimeSettingsMaster.LabelInHeaderBotStation;
             CheckBoxRebootTradeUiLigth.IsChecked = PrimeSettingsMaster.RebootTradeUiLigth;
+            CheckBoxReportCriticalErrors.IsChecked = PrimeSettingsMaster.ReportCriticalErrors;
 
             CheckBoxExtraLogWindow.Click += CheckBoxExtraLogWindow_Click;
             CheckBoxExtraLogSound.Click += CheckBoxExtraLogSound_Click;
@@ -54,6 +76,7 @@ namespace OsEngine.PrimeSettings
             AutoStartChb.Click += AutoStartChb_Click;
             TextBoxBotHeader.TextChanged += TextBoxBotHeader_TextChanged;
             CheckBoxRebootTradeUiLigth.Click += RebootTradeUiLigth_Click;
+            CheckBoxReportCriticalErrors.Click += CheckBoxReportCriticalErrors_Click;
 
             ChangeText();
             OsLocalization.LocalizationTypeChangeEvent += ChangeText;
@@ -66,6 +89,8 @@ namespace OsEngine.PrimeSettings
         {
             MainItem.Header = OsLocalization.PrimeSettings.Title;
             LanguageLabel.Content = OsLocalization.PrimeSettings.LanguageLabel;
+            LabelTimeFormat.Content = OsLocalization.PrimeSettings.TimeFormat;
+            LabelDateFormat.Content = OsLocalization.PrimeSettings.DateFormat;
             ShowExtraLogWindowLabel.Content = OsLocalization.PrimeSettings.ShowExtraLogWindowLabel;
             ExtraLogSound.Content = OsLocalization.PrimeSettings.ExtraLogSoundLabel;
             TransactionSoundLabel.Content = OsLocalization.PrimeSettings.TransactionSoundLabel;
@@ -80,7 +105,7 @@ namespace OsEngine.PrimeSettings
             LabelConfirm.Content = OsLocalization.PrimeSettings.LblAdminPanel;
             LabelHeader.Content = OsLocalization.PrimeSettings.LabelBotHeader;
             LabelRebootTradeUiLigth.Content = OsLocalization.PrimeSettings.LabelLightReboot;
-
+            LabelReportCriticalErrors.Content = OsLocalization.PrimeSettings.ReportErrorsOnServer;
         }
 
 
@@ -118,6 +143,12 @@ namespace OsEngine.PrimeSettings
         {
             if (CheckBoxRebootTradeUiLigth.IsChecked != null)
                 PrimeSettingsMaster.RebootTradeUiLigth = CheckBoxRebootTradeUiLigth.IsChecked.Value;
+        }
+
+        private void CheckBoxReportCriticalErrors_Click(object sender, RoutedEventArgs e)
+        {
+            if (CheckBoxReportCriticalErrors.IsChecked != null)
+                PrimeSettingsMaster.ReportCriticalErrors = CheckBoxReportCriticalErrors.IsChecked.Value;
         }
 
         private void BtnGenerateToken_OnClick(object sender, RoutedEventArgs e)

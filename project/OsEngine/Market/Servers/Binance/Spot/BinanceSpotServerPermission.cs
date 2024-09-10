@@ -74,6 +74,10 @@ namespace OsEngine.Market.Servers.Binance.Spot
         {
             get { return false; }
         }
+        public bool DataFeedTfDayCanLoad
+        {
+            get { return true; }
+        }
         public bool DataFeedTfTickCanLoad
         {
             get { return true; }
@@ -86,6 +90,7 @@ namespace OsEngine.Market.Servers.Binance.Spot
         #endregion
 
         #region Trade permission
+
         public bool MarketOrdersIsSupport
         {
             get { return true; }
@@ -138,7 +143,7 @@ namespace OsEngine.Market.Servers.Binance.Spot
 
         public bool UseStandartCandlesStarter
         {
-            get { return false; }
+            get { return true; }
         }
 
         public bool IsUseLotToCalculateProfit
@@ -163,12 +168,12 @@ namespace OsEngine.Market.Servers.Binance.Spot
 
         public bool CanQueryOrdersAfterReconnect
         {
-            get { return false; }
+            get { return true; }
         }
 
         public bool CanQueryOrderStatus
         {
-            get { return false; }
+            get { return true; }
         }
 
         #endregion

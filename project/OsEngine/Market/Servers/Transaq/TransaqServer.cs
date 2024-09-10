@@ -11,6 +11,7 @@ using OsEngine.Market.Servers.Transaq.TransaqEntity;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -82,6 +83,14 @@ namespace OsEngine.Market.Servers.Transaq
             Thread worker2 = new Thread(ThreadDataParsingWorkPlace);
             worker2.Name = "ThreadTransaqDataParsing";
             worker2.Start();
+
+            Thread worker3 = new Thread(ThreadTradesParsingWorkPlace);
+            worker3.Name = "TransaqThreadTradesParsing";
+            worker3.Start();
+
+            Thread worker4 = new Thread(ThreadMarketDepthsParsingWorkPlace);
+            worker4.Name = "TransaqThreadTradesParsing";
+            worker4.Start();
         }
 
         public ServerType ServerType
@@ -143,12 +152,12 @@ namespace OsEngine.Market.Servers.Transaq
 
         public void Dispose()
         {
-            if(ServerStatus != ServerConnectStatus.Disconnect)
+            if (ServerStatus != ServerConnectStatus.Disconnect)
             {
                 ServerStatus = ServerConnectStatus.Disconnect;
                 DisconnectEvent();
             }
-            
+
             if (_client != null)
             {
                 _client.Dispose();
@@ -323,7 +332,7 @@ namespace OsEngine.Market.Servers.Transaq
 
             bool isInArray = false;
 
-            for(int i = 0;i < _secsSpecification.Count;i++)
+            for (int i = 0; i < _secsSpecification.Count; i++)
             {
                 if (_secsSpecification[i].Secid == secs.Secid)
                 {
@@ -333,18 +342,18 @@ namespace OsEngine.Market.Servers.Transaq
                 }
             }
 
-            if(isInArray == false)
+            if (isInArray == false)
             {
                 _secsSpecification.Add(secs);
             }
 
-            if(_securities == null ||
+            if (_securities == null ||
                 _securities.Count == 0)
             {
                 return;
             }
 
-            if (_secsSpecification != null 
+            if (_secsSpecification != null
                 && _secsSpecification.Count != 0)
             {
                 for (int i = 0; i < _secsSpecification.Count; i++)
@@ -419,18 +428,18 @@ namespace OsEngine.Market.Servers.Transaq
 
             _securities.RemoveAll(s => s == null);
 
-            if(_securities.Count == 0)
+            if (_securities.Count == 0)
             {
                 return;
             }
 
-            if(_secsSpecification != null)
+            if (_secsSpecification != null)
             {
-                for(int i = 0;i < _secsSpecification.Count;i++)
+                for (int i = 0; i < _secsSpecification.Count; i++)
                 {
                     SecurityInfo secInfo = _secsSpecification[i];
 
-                    for(int j = 0;j < _securities.Count;j++)
+                    for (int j = 0; j < _securities.Count; j++)
                     {
                         Security secCur = _securities[j];
 
@@ -446,11 +455,11 @@ namespace OsEngine.Market.Servers.Transaq
                                 secCur.PriceLimitLow = secInfo.Minprice.ToDecimal();
                             }
 
-                            if(string.IsNullOrEmpty(secInfo.Buy_deposit) == false)
+                            if (string.IsNullOrEmpty(secInfo.Buy_deposit) == false)
                             {
                                 secCur.Go = secInfo.Buy_deposit.ToDecimal();
                             }
-                            
+
                             break;
                         }
                     }
@@ -480,7 +489,7 @@ namespace OsEngine.Market.Servers.Transaq
 
                     bool isInArray = false;
 
-                    for(int i = 0;i < _transaqSecurities.Count;i++)
+                    for (int i = 0; i < _transaqSecurities.Count; i++)
                     {
                         if (_transaqSecurities[i].Secid == securityData.Secid)
                         {
@@ -489,7 +498,7 @@ namespace OsEngine.Market.Servers.Transaq
                         }
                     }
 
-                    if(isInArray == false)
+                    if (isInArray == false)
                     {
                         _transaqSecurities.Add(securityData);
                     }
@@ -838,9 +847,9 @@ namespace OsEngine.Market.Servers.Transaq
 
                 PortfolioEvent?.Invoke(_portfolios);
             }
-            catch(Exception error)
+            catch (Exception error)
             {
-                SendLogMessage(error.ToString(),LogMessageType.Error);
+                SendLogMessage(error.ToString(), LogMessageType.Error);
             }
         }
 
@@ -869,19 +878,19 @@ namespace OsEngine.Market.Servers.Transaq
             var portfolio = new Portfolio();
 
             if (openEquity != null)
-            { 
-                portfolio.ValueBegin = openEquity.InnerText.ToDecimal(); 
+            {
+                portfolio.ValueBegin = openEquity.InnerText.ToDecimal();
             }
-            if (equity != null) 
-            { 
-                portfolio.ValueCurrent = equity.InnerText.ToDecimal(); 
+            if (equity != null)
+            {
+                portfolio.ValueCurrent = equity.InnerText.ToDecimal();
             }
-            if (equity != null 
+            if (equity != null
                 && cover != null
                 && block != null)
             {
-                portfolio.ValueBlocked = 
-                    (equity.InnerText.ToDecimal() 
+                portfolio.ValueBlocked =
+                    (equity.InnerText.ToDecimal()
                     - cover.InnerText.ToDecimal())
                     + block.InnerText.ToDecimal();
             }
@@ -904,12 +913,20 @@ namespace OsEngine.Market.Servers.Transaq
                 pos.SecurityNameCode = node.SelectSingleNode("seccode")?.InnerText;
                 pos.PortfolioName = portfolio.Number;
 
-                var begin = node.SelectSingleNode("open_balance")?.InnerText.ToDecimal();
-                var buy = node.SelectSingleNode("bought")?.InnerText.ToDecimal();
-                var sell = node.SelectSingleNode("sold")?.InnerText.ToDecimal();
+                XmlNode beginNode = node.SelectSingleNode("open_balance");
+                XmlNode buyNode = node.SelectSingleNode("bought");
+                XmlNode sellNode = node.SelectSingleNode("sold");
 
-                pos.ValueBegin = Convert.ToDecimal(begin);
-                pos.ValueCurrent = pos.ValueBegin + Convert.ToDecimal(buy - sell);
+                if (beginNode != null)
+                {
+                    pos.ValueBegin = beginNode.InnerText.ToDecimal();
+                }
+
+                if (buyNode != null &&
+                    sellNode != null)
+                {
+                    pos.ValueCurrent = pos.ValueBegin + buyNode.InnerText.ToDecimal() - sellNode.InnerText.ToDecimal();
+                }
 
                 portfolio.SetNewPosition(pos);
             }
@@ -977,10 +994,10 @@ namespace OsEngine.Market.Servers.Transaq
                         PositionOnBoard pos = new PositionOnBoard()
                         {
                             SecurityNameCode = fortsPosition.Seccode,
-                            ValueBegin = Convert.ToDecimal(fortsPosition.Startnet.Replace(".", ",")),
-                            ValueCurrent = Convert.ToDecimal(fortsPosition.Totalnet.Replace(".", ",")),
-                            ValueBlocked = Convert.ToDecimal(fortsPosition.Openbuys.Replace(".", ",")) +
-                                           Convert.ToDecimal(fortsPosition.Opensells.Replace(".", ",")),
+                            ValueBegin = fortsPosition.Startnet.ToDecimal(),
+                            ValueCurrent = fortsPosition.Totalnet.ToDecimal(),
+                            ValueBlocked = fortsPosition.Openbuys.ToDecimal() +
+                                           fortsPosition.Opensells.ToDecimal(),
                             PortfolioName = needPortfolio.Number,
 
                         };
@@ -1047,9 +1064,9 @@ namespace OsEngine.Market.Servers.Transaq
                         {
                             SecurityNameCode = tick.Seccode,
                             Id = tick.Tradeno,
-                            Price = Convert.ToDecimal(tick.Price.Replace(".", ",")),
+                            Price = tick.Price.ToDecimal(),
                             Side = tick.Buysell == "B" ? Side.Buy : Side.Sell,
-                            Volume = Convert.ToDecimal(tick.Quantity.Replace(".", ",")),
+                            Volume = tick.Quantity.ToDecimal(),
                             Time = DateTime.Parse(tick.Tradetime),
                         });
                     }
@@ -1097,12 +1114,12 @@ namespace OsEngine.Market.Servers.Transaq
         {
             try
             {
-                if(_client == null)
+                if (_client == null)
                 {
                     return;
                 }
 
-                if(ServerStatus == ServerConnectStatus.Disconnect)
+                if (ServerStatus == ServerConnectStatus.Disconnect)
                 {
                     return;
                 }
@@ -1133,7 +1150,7 @@ namespace OsEngine.Market.Servers.Transaq
                     {
                         SendLogMessage(OsLocalization.Market.Message95 + "  " + res, LogMessageType.Error);
 
-                        if(ServerStatus != ServerConnectStatus.Disconnect)
+                        if (ServerStatus != ServerConnectStatus.Disconnect)
                         {
                             ServerStatus = ServerConnectStatus.Disconnect;
                             DisconnectEvent();
@@ -1153,11 +1170,11 @@ namespace OsEngine.Market.Servers.Transaq
 
                 while (startLoadingTime.AddSeconds(10) > DateTime.Now)
                 {
-                    Candles candles = null;
+                    TransaqEntity.Candles candles = null;
 
                     for (int i = 0; i < _allCandleSeries.Count; i++)
                     {
-                        Candles curSeries = _allCandleSeries[i];
+                        TransaqEntity.Candles curSeries = _allCandleSeries[i];
 
                         if (curSeries.Seccode == security.Name && curSeries.Period == needPeriodId)
                         {
@@ -1186,7 +1203,7 @@ namespace OsEngine.Market.Servers.Transaq
                         series.CandlesAll = BuildCandles(donorCandles, newTf, oldTf);
                     }
 
-                    for(int i = 0;series.CandlesAll != null && i < series.CandlesAll.Count;i++)
+                    for (int i = 0; series.CandlesAll != null && i < series.CandlesAll.Count; i++)
                     {
                         if (series.CandlesAll[i] == null)
                         {
@@ -1197,7 +1214,19 @@ namespace OsEngine.Market.Servers.Transaq
 
                     for (int i = 1; series.CandlesAll != null && i < series.CandlesAll.Count; i++)
                     {
-                        if (series.CandlesAll[i-1].TimeStart == series.CandlesAll[i].TimeStart)
+                        if (series.CandlesAll[i - 1].TimeStart == series.CandlesAll[i].TimeStart)
+                        {
+                            series.CandlesAll.RemoveAt(i);
+                            i--;
+                        }
+                    }
+
+                    for (int i = 0; series.CandlesAll != null && i < series.CandlesAll.Count; i++)
+                    {
+                        if (series.CandlesAll[i].Open == 0
+                            || series.CandlesAll[i].High == 0
+                            || series.CandlesAll[i].Low == 0 
+                            || series.CandlesAll[i].Close == 0)
                         {
                             series.CandlesAll.RemoveAt(i);
                             i--;
@@ -1227,7 +1256,7 @@ namespace OsEngine.Market.Servers.Transaq
             }
         }
 
-        private List<Candle> ParseCandles(Candles candles)
+        private List<Candle> ParseCandles(TransaqEntity.Candles candles)
         {
             try
             {
@@ -1237,11 +1266,11 @@ namespace OsEngine.Market.Servers.Transaq
                 {
                     osCandles.Add(new Candle()
                     {
-                        Open = Convert.ToDecimal(candle.Open.Replace(".", ",")),
-                        High = Convert.ToDecimal(candle.High.Replace(".", ",")),
-                        Low = Convert.ToDecimal(candle.Low.Replace(".", ",")),
-                        Close = Convert.ToDecimal(candle.Close.Replace(".", ",")),
-                        Volume = Convert.ToDecimal(candle.Volume.Replace(".", ",")),
+                        Open = candle.Open.ToDecimal(),
+                        High = candle.High.ToDecimal(),
+                        Low = candle.Low.ToDecimal(),
+                        Close = candle.Close.ToDecimal(),
+                        Volume = candle.Volume.ToDecimal(),
                         TimeStart = DateTime.Parse(candle.Date),
                     });
                 }
@@ -1257,6 +1286,12 @@ namespace OsEngine.Market.Servers.Transaq
         private List<Candle> BuildCandles(List<Candle> oldCandles, int needTf, int oldTf)
         {
             List<Candle> newCandles = new List<Candle>();
+
+            if(oldCandles == null ||
+                oldCandles.Count == 0)
+            {
+                return newCandles;
+            }
 
             int index;
 
@@ -1311,6 +1346,11 @@ namespace OsEngine.Market.Servers.Transaq
             else
             {
                 index = oldCandles.FindIndex(can => can.TimeStart.Minute % needTf == 0);
+            }
+
+            if(index < 0)
+            {
+                index = 0;
             }
 
             int count = needTf / oldTf;
@@ -1435,9 +1475,9 @@ namespace OsEngine.Market.Servers.Transaq
             return null;
         }
 
-        private List<Candles> _allCandleSeries = new List<Candles>();
+        private List<TransaqEntity.Candles> _allCandleSeries = new List<TransaqEntity.Candles>();
 
-        private void _client_ClientOnNewCandles(Candles candles)
+        private void _client_ClientOnNewCandles(TransaqEntity.Candles candles)
         {
             _allCandleSeries.Add(candles);
         }
@@ -1464,7 +1504,7 @@ namespace OsEngine.Market.Servers.Transaq
                 return;
             }
 
-            for (int i = 0;i < _subscribeSecurities.Count;i++)
+            for (int i = 0; i < _subscribeSecurities.Count; i++)
             {
                 if (_subscribeSecurities[i].Name == security.Name
                     && _subscribeSecurities[i].NameId == security.NameId
@@ -1514,14 +1554,14 @@ namespace OsEngine.Market.Servers.Transaq
 
             if (res != "<result success=\"true\"/>")
             {
-                if(counter >= 3)
+                if (counter >= 3)
                 {
-                    SendLogMessage("Subscrible security error "+ security.Name + "   " + res, LogMessageType.Error);
+                    SendLogMessage("Subscrible security error " + security.Name + "   " + res, LogMessageType.Error);
                     return;
                 }
                 else
                 {
-                    if(ServerStatus == ServerConnectStatus.Disconnect)
+                    if (ServerStatus == ServerConnectStatus.Disconnect)
                     {
                         return;
                     }
@@ -1607,7 +1647,7 @@ namespace OsEngine.Market.Servers.Transaq
                 // sending command / отправка команды
                 string res = _client.ConnectorSendCommand(cmd);
 
-                if(res == null)
+                if (res == null)
                 {
                     order.State = OrderStateType.Fail;
                     SendLogMessage("SendOrderFall. Order num: " + order.NumberUser, LogMessageType.Error);
@@ -1619,8 +1659,8 @@ namespace OsEngine.Market.Servers.Transaq
                 {
                     order.State = OrderStateType.Fail;
                     SendLogMessage("SendOrderFall" + result.Message, LogMessageType.Error);
-                    
-                    if(MyOrderEvent != null)
+
+                    if (MyOrderEvent != null)
                     {
                         MyOrderEvent(order);
                     }
@@ -1714,7 +1754,7 @@ namespace OsEngine.Market.Servers.Transaq
 
         private void _client_ClientOnNewTradesEvent(List<TransaqEntity.Trade> trades)
         {
-            if(ServerStatus == ServerConnectStatus.Disconnect)
+            if (ServerStatus == ServerConnectStatus.Disconnect)
             {
                 return;
             }
@@ -1724,7 +1764,7 @@ namespace OsEngine.Market.Servers.Transaq
 
         private void _client_ClientOnUpdateMarketDepth(List<Quote> quotes)
         {
-            if(ServerStatus == ServerConnectStatus.Disconnect)
+            if (ServerStatus == ServerConnectStatus.Disconnect)
             {
                 return;
             }
@@ -1762,7 +1802,7 @@ namespace OsEngine.Market.Servers.Transaq
                     {
                         List<TransaqEntity.Order> orders = null;
 
-                        if(_ordersQueue.TryDequeue(out orders))
+                        if (_ordersQueue.TryDequeue(out orders))
                         {
                             UpdateMyOrders(orders);
                         }
@@ -1772,25 +1812,75 @@ namespace OsEngine.Market.Servers.Transaq
                     {
                         List<TransaqEntity.Trade> trades = null;
 
-                        if(_myTradesQueue.TryDequeue(out trades))
+                        if (_myTradesQueue.TryDequeue(out trades))
                         {
                             UpdateMyTrades(trades);
                         }
                     }
-                    else if (_tradesQueue.IsEmpty == false)
+                    else
+                    {
+                        Thread.Sleep(1);
+                    }
+                }
+                catch (Exception e)
+                {
+                    SendLogMessage(e.ToString(), LogMessageType.Error);
+                    Thread.Sleep(5000);
+                }
+            }
+        }
+
+        private void ThreadTradesParsingWorkPlace()
+        {
+            while (true)
+            {
+                try
+                {
+                    if (ServerStatus == ServerConnectStatus.Disconnect)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
+                    if (_tradesQueue.IsEmpty == false)
                     {
                         List<TransaqEntity.Trade> trades = null;
 
-                        if(_tradesQueue.TryDequeue(out trades))
+                        if (_tradesQueue.TryDequeue(out trades))
                         {
                             UpdateTrades(trades);
                         }
                     }
-                    else if (_mdQueue.IsEmpty == false)
+                    else
+                    {
+                        Thread.Sleep(1);
+                    }
+                }
+                catch (Exception e)
+                {
+                    SendLogMessage(e.ToString(), LogMessageType.Error);
+                    Thread.Sleep(5000);
+                }
+            }
+        }
+
+        private void ThreadMarketDepthsParsingWorkPlace()
+        {
+            while (true)
+            {
+                try
+                {
+                    if (ServerStatus == ServerConnectStatus.Disconnect)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
+                    if (_mdQueue.IsEmpty == false)
                     {
                         List<Quote> quotes = null;
 
-                        if(_mdQueue.TryDequeue(out quotes))
+                        if (_mdQueue.TryDequeue(out quotes))
                         {
                             UpdateMarketDepths(quotes);
                         }
@@ -1802,7 +1892,7 @@ namespace OsEngine.Market.Servers.Transaq
                 }
                 catch (Exception e)
                 {
-                    SendLogMessage(e.ToString(),LogMessageType.Error);
+                    SendLogMessage(e.ToString(), LogMessageType.Error);
                     Thread.Sleep(5000);
                 }
             }
@@ -1810,7 +1900,7 @@ namespace OsEngine.Market.Servers.Transaq
 
         private void UpdateMyTrades(List<TransaqEntity.Trade> trades)
         {
-            for(int i = 0;i < trades.Count;i++) 
+            for (int i = 0; i < trades.Count; i++)
             {
                 TransaqEntity.Trade trade = trades[i];
 
@@ -1844,14 +1934,14 @@ namespace OsEngine.Market.Servers.Transaq
                 newOrder.NumberMarket = order.Orderno;
                 newOrder.TimeCallBack = order.Time != null ? DateTime.Parse(order.Time) : ServerTime;
                 newOrder.Side = order.Buysell == "B" ? Side.Buy : Side.Sell;
-                newOrder.Volume = Convert.ToDecimal(order.Quantity);
-                newOrder.Price = Convert.ToDecimal(order.Price.Replace(".", ","));
+                newOrder.Volume = order.Quantity.ToDecimal();
+                newOrder.Price = order.Price.ToDecimal();
                 newOrder.ServerType = ServerType.Transaq;
                 newOrder.PortfolioNumber = string.IsNullOrEmpty(order.Union) ? order.Client : order.Union;
 
                 lock (_sendOrdersLocker)
                 {
-                    if(string.IsNullOrEmpty(newOrder.NumberMarket) == false
+                    if (string.IsNullOrEmpty(newOrder.NumberMarket) == false
                         && newOrder.NumberUser != 0
                         && newOrder.NumberMarket != "0")
                     {
@@ -1875,10 +1965,10 @@ namespace OsEngine.Market.Servers.Transaq
                          order.Status == "disabled" ||
                          order.Status == "removed")
                 {
-                    if(order.Status == "removed"
+                    if (order.Status == "removed"
                         && string.IsNullOrEmpty(order.Result) == false)
                     {
-                        SendLogMessage(order.Result,LogMessageType.Error);
+                        SendLogMessage(order.Result, LogMessageType.Error);
                     }
 
                     newOrder.State = OrderStateType.Cancel;
@@ -2108,18 +2198,24 @@ namespace OsEngine.Market.Servers.Transaq
 
         private void UpdateTrades(List<TransaqEntity.Trade> trades)
         {
-            for(int i = 0;i < trades.Count;i++)
+            for (int i = 0; i < trades.Count; i++)
             {
                 TransaqEntity.Trade t = trades[i];
+
+                if (string.IsNullOrEmpty(t.Price)
+                    || string.IsNullOrEmpty(t.Quantity))
+                {
+                    continue;
+                }
 
                 Trade trade = new Trade();
                 trade.SecurityNameCode = t.Seccode;
                 trade.Id = t.Tradeno;
-                trade.Price = Convert.ToDecimal(t.Price.Replace(".", ","));
+                trade.Price = t.Price.ToDecimal();
                 trade.Side = t.Buysell == "B" ? Side.Buy : Side.Sell;
-                trade.Volume = Convert.ToDecimal(t.Quantity.Replace(".", ","));
+                trade.Volume = t.Quantity.ToDecimal();
                 trade.Time = DateTime.Parse(t.Time);
-                
+
                 NewTradesEvent?.Invoke(trade);
             }
         }
@@ -2138,7 +2234,7 @@ namespace OsEngine.Market.Servers.Transaq
 
         private void SendLogMessage(string message, LogMessageType type)
         {
-            if(type == LogMessageType.Error)
+            if (type == LogMessageType.Error)
             {
 
             }

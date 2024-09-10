@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 using System.Windows.Forms.Integration;
+using OsEngine.Charts;
 using OsEngine.Entity;
 using OsEngine.Language;
 using OsEngine.Logging;
@@ -178,7 +180,7 @@ namespace OsEngine.OsOptimizer
                 {
                     if (FirstLessSecond(reports[i2], reports[i2 + 1], _sortBotsType))
                     {
-                        // сортировка пузыриком // фаталити https://youtu.be/LOh_J0Dah7c?t=30
+                        // сортировка пузыриком // фаталити
                         OptimizerReport glass = reports[i2];
                         reports[i2] = reports[i2 + 1];
                         reports[i2 + 1] = glass;
@@ -273,7 +275,9 @@ namespace OsEngine.OsOptimizer
 
         private void CreateStepsOfOptimization()
         {
-            _gridStepsOfOptimization = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.None,true);
+            _gridStepsOfOptimization = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, 
+                DataGridViewAutoSizeRowsMode.None,true);
+
             _gridStepsOfOptimization.ScrollBars = ScrollBars.Vertical;
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
@@ -536,6 +540,7 @@ namespace OsEngine.OsOptimizer
                 _gridStepsOfOptimization.Invoke(new Action(UpdateRobustnessChart));
                 return;
             }
+
             try
             {
                 _labelRobustnessMetricaValue.Content = "";
@@ -565,6 +570,8 @@ namespace OsEngine.OsOptimizer
                 int num = 0;
 
                 OptimizerReport inSampleReport = null;
+
+                decimal max = decimal.MinValue;
 
                 for (int i = 0; i < _reports.Count; i++)
                 {
@@ -596,22 +603,46 @@ namespace OsEngine.OsOptimizer
                                 if (botNum <= 20)
                                 {
                                     countBestTwenty += 1;
+
+                                    if(countBestTwenty > max)
+                                    {
+                                        max = countBestTwenty;
+                                    }
                                 }
                                 else if (botNum > 20 && botNum <= 40)
                                 {
                                     count20_40 += 1;
+                                    if (count20_40 > max)
+                                    {
+                                        max = count20_40;
+                                    }
                                 }
                                 else if (botNum > 40 && botNum <= 60)
                                 {
                                     count40_60 += 1;
+
+                                    if (count40_60 > max)
+                                    {
+                                        max = count40_60;
+                                    }
                                 }
                                 else if (botNum > 60 && botNum <= 80)
                                 {
                                     count60_80 += 1;
+
+                                    if (count60_80 > max)
+                                    {
+                                        max = count60_80;
+                                    }
                                 }
                                 else if (botNum > 80)
                                 {
                                     countWorst20 += 1;
+
+                                    if (countWorst20 > max)
+                                    {
+                                        max = countWorst20;
+                                    }
                                 }
 
                                 break;
@@ -642,7 +673,7 @@ namespace OsEngine.OsOptimizer
                     _labelRobustnessMetricaValue.Content = Math.Round(robustness, 2).ToString() + " %";
                 }
 
-                _chartRobustness.Series[0].Points.Clear();
+                _chartRobustness.Series[0].Points.ClearFast();
 
                 DataPoint point1 = new DataPoint(1, countBestTwenty);
                 point1.AxisLabel = "Best 20%";
@@ -669,6 +700,12 @@ namespace OsEngine.OsOptimizer
                 _chartRobustness.Series[0].Points.Add(point3);
                 _chartRobustness.Series[0].Points.Add(point4);
                 _chartRobustness.Series[0].Points.Add(point5);
+
+                if (max != decimal.MinValue)
+                {
+                    _chartRobustness.ChartAreas[0].AxisY.Maximum = Convert.ToDouble(max);
+                    _chartRobustness.ChartAreas[0].AxisY.Minimum = 0;
+                }
             }
             catch (Exception ex)
             {
@@ -834,13 +871,15 @@ namespace OsEngine.OsOptimizer
 
                 Series series = _chartTotalProfit.Series[0];
 
-                series.Points.Clear();
+                series.Points.ClearFast();
 
                 if (profitsSumm.Count == 0)
                 {
                     return;
                 }
 
+                decimal max = decimal.MinValue;
+                decimal min = decimal.MaxValue;
 
                 for (int i = 0; i < profitsSumm.Count; i++)
                 {
@@ -854,6 +893,15 @@ namespace OsEngine.OsOptimizer
                         open = profitsSumm[i - 1];
                     }
                     close = profitsSumm[i];
+
+                    if(close > max)
+                    {
+                        max = close;
+                    }
+                    if(close < min)
+                    {
+                        min = close;
+                    }
 
                     if (close > open)
                     {
@@ -896,6 +944,13 @@ namespace OsEngine.OsOptimizer
                         series.Points[series.Points.Count - 1].LabelForeColor = Color.AntiqueWhite;
                     }
 
+                }
+
+                if(max != decimal.MinValue &&
+                    min != decimal.MaxValue)
+                {
+                    _chartTotalProfit.ChartAreas[0].AxisY.Maximum = Convert.ToDouble(Math.Round(max + max * 0.2m,2));
+                    _chartTotalProfit.ChartAreas[0].AxisY.Minimum = Convert.ToDouble(Math.Round(min,2));
                 }
             }
             catch (Exception ex)
@@ -1035,18 +1090,31 @@ namespace OsEngine.OsOptimizer
                 Series seriesAverageLine = _chartAverageProfit.Series[1];
                 Series seriesAveragePoint = _chartAverageProfit.Series[2];
 
-                seriesOosValues.Points.Clear();
-                seriesAverageLine.Points.Clear();
-                seriesAveragePoint.Points.Clear();
+                seriesOosValues.Points.ClearFast();
+                seriesAverageLine.Points.ClearFast();
+                seriesAveragePoint.Points.ClearFast();
 
                 if (values.Count == 0)
                 {
                     return;
                 }
 
+                decimal max = decimal.MinValue;
+                decimal min = decimal.MaxValue;
+
                 for (int i = 0; i < values.Count; i++)
                 {
                     seriesOosValues.Points.AddXY(i + 1, values[i]);
+
+                    if (values[i] > max)
+                    {
+                        max = values[i];
+                    }
+
+                    if (values[i] < min)
+                    {
+                        min = values[i];
+                    }
 
                     if (values[i] > 0)
                     {
@@ -1089,6 +1157,14 @@ namespace OsEngine.OsOptimizer
                     seriesAveragePoint.Points[0].Label = label;
                     seriesAveragePoint.Points[0].LabelForeColor = Color.AntiqueWhite;
                 }
+
+                if (max != decimal.MinValue &&
+                    min != decimal.MaxValue)
+                {
+                    _chartAverageProfit.ChartAreas[0].AxisY.Maximum = Convert.ToDouble(Math.Round(max + max * 0.2m, 2));
+                    _chartAverageProfit.ChartAreas[0].AxisY.Minimum = Convert.ToDouble(Math.Round(min, 2));
+                }
+
             }
             catch (Exception ex)
             {
@@ -1231,18 +1307,31 @@ namespace OsEngine.OsOptimizer
                 Series seriesAverageLine = _chartProfitFactor.Series[1];
                 Series seriesAveragePoint = _chartProfitFactor.Series[2];
 
-                seriesOosValues.Points.Clear();
-                seriesAverageLine.Points.Clear();
-                seriesAveragePoint.Points.Clear();
+                seriesOosValues.Points.ClearFast();
+                seriesAverageLine.Points.ClearFast();
+                seriesAveragePoint.Points.ClearFast();
 
                 if (values.Count == 0)
                 {
                     return;
                 }
 
-                for (int i = 0; i < values.Count; i++)
+                decimal max = decimal.MinValue;
+                decimal min = decimal.MaxValue;
+
+                    for (int i = 0; i < values.Count; i++)
                 {
                     seriesOosValues.Points.AddXY(i + 1, values[i]);
+
+                    if (values[i] > max)
+                    {
+                        max = values[i];
+                    }
+
+                    if (values[i] < min)
+                    {
+                        min = values[i];
+                    }
 
                     if (values[i] > 0)
                     {
@@ -1284,6 +1373,13 @@ namespace OsEngine.OsOptimizer
 
                     seriesAveragePoint.Points[0].Label = label;
                     seriesAveragePoint.Points[0].LabelForeColor = Color.AntiqueWhite;
+                }
+
+                if (max != decimal.MinValue &&
+                    min != decimal.MaxValue)
+                {
+                    _chartProfitFactor.ChartAreas[0].AxisY.Maximum = Convert.ToDouble(Math.Round(max + max * 0.2m, 2));
+                    _chartProfitFactor.ChartAreas[0].AxisY.Minimum = Convert.ToDouble(Math.Round(min, 2));
                 }
             }
             catch (Exception ex)

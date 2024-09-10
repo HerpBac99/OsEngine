@@ -24,7 +24,7 @@ Exit:
 namespace OsEngine.Robots.CounterTrend
 {
 
-    [Bot("Bollinger")]
+    [Bot("StrategyBollinger")]
     public class StrategyBollinger : BotPanel
     {
         public StrategyBollinger(string name, StartProgram startProgram)
@@ -36,7 +36,7 @@ namespace OsEngine.Robots.CounterTrend
             _bollinger = new Bollinger(name + "Bollinger", false);
             _bollinger = _tab.CreateIndicator(_bollinger);
 
-            _moving = new MovingAverage(name + "Moving", false) { Lenght = 15 };
+            _moving = new MovingAverage(name + "Moving", false) { Length = 15 };
             _moving = _tab.CreateIndicator(_moving);
 
             _tab.CandleFinishedEvent += Bot_CandleFinishedEvent;
@@ -64,7 +64,7 @@ namespace OsEngine.Robots.CounterTrend
         /// </summary>
         public override string GetNameStrategyType()
         {
-            return "Bollinger";
+            return "StrategyBollinger";
         }
 
         /// <summary>
@@ -216,9 +216,7 @@ namespace OsEngine.Robots.CounterTrend
                 return;
             }
 
-            if (openPosition == null || openPosition.Count == 0
-                && candles[candles.Count - 1].TimeStart.Hour >= 11
-                && candles[candles.Count - 1].TimeStart.Hour <= 18)
+            if (openPosition == null || openPosition.Count == 0)
             {
                 LogicOpenPosition(candles);
             }

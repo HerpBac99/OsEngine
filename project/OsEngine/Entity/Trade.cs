@@ -59,6 +59,11 @@ namespace OsEngine.Entity
         /// </summary>
         public Side Side;
 
+        /// <summary>
+        /// Tester only. Timeframe of the candlestick that generated the trade
+        /// </summary>
+        public TimeFrame TimeFrameInTester;
+
         // a new part. This part of the final is not to be downloaded. It can be obtained from OsData, only from standard connectors
 
         /// <summary>
@@ -149,15 +154,7 @@ namespace OsEngine.Entity
                 return;
             }
 
-            int year = Convert.ToInt32(sIn[0].Substring(0, 4));
-            int month = Convert.ToInt32(sIn[0].Substring(4, 2)); 
-            int day = Convert.ToInt32(sIn[0].Substring(6, 2));
-
-            int hour = Convert.ToInt32(sIn[1].Substring(0, 2));
-            int minute = Convert.ToInt32(sIn[1].Substring(2, 2));
-            int second = Convert.ToInt32(sIn[1].Substring(4, 2));
-
-            Time = new DateTime(year, month, day, hour, minute, second);
+            Time = DateTimeParseHelper.ParseFromTwoStrings(sIn[0], sIn[1]);
             
             Price = sIn[2].ToDecimal();
 
@@ -178,7 +175,7 @@ namespace OsEngine.Entity
                 Id = sIn[6];
             }
 
-            if (sIn.Length > 7)
+            if (sIn.Length > 8)
             {
                 Bid = sIn[7].ToDecimal();
                 Ask = sIn[8].ToDecimal();

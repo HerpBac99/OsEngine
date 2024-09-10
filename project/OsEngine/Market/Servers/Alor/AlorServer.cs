@@ -322,18 +322,97 @@ namespace OsEngine.Market.Servers.Alor
                     {
                         continue;
                     }
-
+                   
                     Security newSecurity = new Security();
                     newSecurity.SecurityType = instrumentType;
                     newSecurity.Exchange = item.exchange;
-                    newSecurity.DecimalsVolume = 1;
+                    newSecurity.DecimalsVolume = 0;
                     newSecurity.Lot = item.lotsize.ToDecimal();
                     newSecurity.Name = item.symbol;
-                    newSecurity.NameFull = item.description;
+                    newSecurity.NameFull = item.symbol + "_" + item.board;
 
                     if (newSecurity.SecurityType == SecurityType.Option)
                     {
-                        newSecurity.NameClass = "Option";
+                        
+                        newSecurity.Go = item.marginbuy.ToDecimal();
+
+                        if(item.type != null &&
+                            item.type.Contains("Прем. европ. Call "))
+                        {
+                            newSecurity.NameClass = "Option_Eur";
+                            newSecurity.OptionType = OptionType.Call;
+                            string strike = item.type.Replace("Прем. европ. Call ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Нед. прем. европ. Call "))
+                        {
+                            newSecurity.NameClass = "Option_Eur";
+                            newSecurity.OptionType = OptionType.Call;
+                            string strike = item.type.Replace("Нед. прем. европ. Call ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Прем. европ. Put "))
+                        {
+                            newSecurity.NameClass = "Option_Eur";
+                            newSecurity.OptionType = OptionType.Put;
+                            string strike = item.type.Replace("Прем. европ. Put ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Нед. прем. европ. Put "))
+                        {
+                            newSecurity.NameClass = "Option_Eur";
+                            newSecurity.OptionType = OptionType.Put;
+                            string strike = item.type.Replace("Нед. прем. европ. Put ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Нед. марж. амер. Call "))
+                        {
+                            newSecurity.NameClass = "Option_Us";
+                            newSecurity.OptionType = OptionType.Call;
+                            string strike = item.type.Replace("Нед. марж. амер. Call ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Марж. амер. Call "))
+                        {
+                            newSecurity.NameClass = "Option_Us";
+                            newSecurity.OptionType = OptionType.Call;
+                            string strike = item.type.Replace("Марж. амер. Call ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Марж. амер. Put "))
+                        {
+                            newSecurity.NameClass = "Option_Us";
+                            newSecurity.OptionType = OptionType.Put;
+                            string strike = item.type.Replace("Марж. амер. Put ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else if (item.type != null &&
+                            item.type.Contains("Нед. марж. амер. Put "))
+                        {
+                            newSecurity.NameClass = "Option_Us";
+                            newSecurity.OptionType = OptionType.Put;
+                            string strike = item.type.Replace("Нед. марж. амер. Put ", "");
+                            strike = strike.Split(' ')[0];
+                            newSecurity.Strike = strike.ToDecimal();
+                        }
+                        else
+                        {
+
+                        }
+
                     }
                     else if (item.type == null)
                     {
@@ -355,8 +434,7 @@ namespace OsEngine.Market.Servers.Alor
                     else if (newSecurity.SecurityType == SecurityType.Futures)
                     {
                         newSecurity.NameClass = "Futures";
-                        decimal go = item.marginbuy.ToDecimal();
-                        newSecurity.Go = go;
+                        newSecurity.Go = item.marginbuy.ToDecimal();
                     }
                     else if (newSecurity.SecurityType == SecurityType.CurrencyPair)
                     {
@@ -364,7 +442,18 @@ namespace OsEngine.Market.Servers.Alor
                     }
                     else if (item.type == "CS")
                     {
-                        newSecurity.NameClass = "Stock";
+                        if (item.board == "TQBR")
+                        {
+                            newSecurity.NameClass = "Stock";
+                        }
+                        else if (item.board == "FQBR")
+                        {
+                            newSecurity.NameClass = "Stock World";
+                        }
+                        else 
+                        {
+                            newSecurity.NameClass = "Stock";
+                        }
                     }
 		            else if (item.type == "CORP")
                     {
@@ -372,7 +461,7 @@ namespace OsEngine.Market.Servers.Alor
                     }
                     else if (item.type == "PS")
                     {
-                        newSecurity.NameClass = "Stock Pref";
+                        newSecurity.NameClass = "Stock";
                     }
                     else if (newSecurity.SecurityType == SecurityType.Fund)
                     {
@@ -381,6 +470,18 @@ namespace OsEngine.Market.Servers.Alor
                     else
                     {
                         newSecurity.NameClass = item.type;
+                    }
+
+                    if (string.IsNullOrEmpty(item.cancellation) == false 
+                        && (newSecurity.SecurityType == SecurityType.Futures ||
+                        newSecurity.SecurityType == SecurityType.Option ||
+                        newSecurity.NameClass == "Futures spread"))
+                    {
+                        int year = Convert.ToInt32(item.cancellation.Substring(0, 4));
+                        int month = Convert.ToInt32(item.cancellation.Substring(5, 2));
+                        int day = Convert.ToInt32(item.cancellation.Substring(8, 2));
+
+                        newSecurity.Expiration = new DateTime(year, month, day);
                     }
 
                     newSecurity.NameId = item.shortname;
@@ -604,6 +705,15 @@ namespace OsEngine.Market.Servers.Alor
 
             DateTime startTime = endTime.AddDays(-daysCount);
 
+            if (endTime.DayOfWeek == DayOfWeek.Monday)
+            {
+                startTime = startTime.AddDays(-2);
+            }
+            if (endTime.DayOfWeek == DayOfWeek.Tuesday)
+            {
+                startTime = startTime.AddDays(-1);
+            }
+
             List<Candle> candles = GetCandleDataToSecurity(security, timeFrameBuilder, startTime, endTime, startTime);
         
             while(candles.Count > candleCount)
@@ -759,9 +869,6 @@ namespace OsEngine.Market.Servers.Alor
 
         public List<Trade> GetTickDataToSecurity(Security security, DateTime startTime, DateTime endTime, DateTime actualTime)
         {
-            return null;
-
-            // blocked
 
             List<Trade> trades = new List<Trade>();
 
@@ -795,12 +902,14 @@ namespace OsEngine.Market.Servers.Alor
 
         private TradesHistoryAlor GetHistoryTrades(Security security, DateTime startTime, DateTime endTime)
         {
-            // curl -X GET "https://api.alor.ru/md/v2/Securities/MOEX/LKOH/alltrades/history?from=1593430060&to=1593430560&limit=100&offset=10&format=Simple" -H "accept: application/json"
+            // /md/v2/Securities/MOEX/SBER/alltrades/history?instrumentGroup=TQBR&from=1593430060&to=1593430560&limit=100&offset=10&format=Simple
 
             string endPoint = "/md/v2/Securities/MOEX/" + security.Name;
             endPoint += "/alltrades/history?";
 
-            endPoint += "from=" + ConvertToUnixTimestamp(startTime);
+            endPoint += "instrumentGroup=" + security.NameFull.Split('_')[security.NameFull.Split('_').Length - 1];
+
+            endPoint += "&from=" + ConvertToUnixTimestamp(startTime);
             endPoint += "&to=" + ConvertToUnixTimestamp(endTime);
             endPoint += "&limit=50000";
             endPoint += "&format=Simple";
@@ -1448,7 +1557,7 @@ namespace OsEngine.Market.Servers.Alor
             trade.Time = ConvertToDateTimeFromUnixFromMilliseconds(baseMessage.timestamp);
             trade.Id = baseMessage.id;
             trade.Side = Side.Buy;
-            trade.Volume = 1;
+            trade.Volume = baseMessage.qty.ToDecimal();
 
             if (NewTradesEvent != null)
             {
@@ -1587,6 +1696,8 @@ namespace OsEngine.Market.Servers.Alor
             }
         }
 
+        private List<MyTrade> _spreadMyTrades = new List<MyTrade>();
+
         private void UpDateMyTrade(string data)
         {
             MyTradeAlor baseMessage =
@@ -1613,6 +1724,20 @@ namespace OsEngine.Market.Servers.Alor
             if (MyTradeEvent != null)
             {
                 MyTradeEvent(trade);
+            }
+
+            if (_spreadOrders.Count > 0)
+            {
+                _spreadMyTrades.Add(trade);
+
+                for (int i = 0; i < _spreadOrders.Count; i++)
+                {
+                    if(TryGenerateFakeMyTradeToOrderBySpread(_spreadOrders[i]))
+                    {
+                        _spreadOrders.RemoveAt(i);
+                        break;
+                    }
+                }
             }
         }
 
@@ -1683,6 +1808,105 @@ namespace OsEngine.Market.Servers.Alor
             {
                 MyOrderEvent(order);
             }
+
+            if(order.State == OrderStateType.Done)
+            {
+                // Проверяем, является ли бумага спредом
+
+                for (int i = 0; i < _spreadOrders.Count; i++)
+                {
+                    if (_spreadOrders[i].NumberUser == order.NumberUser 
+                        && _spreadOrders[i].NumberMarket == "")
+                    {
+                        _spreadOrders[i].NumberMarket = order.NumberMarket;
+                    }
+                }
+
+                for (int i = 0; i < _spreadOrders.Count; i++)
+                {
+                    if (_spreadOrders[i].SecurityNameCode == order.SecurityNameCode)
+                    {
+                        if(TryGenerateFakeMyTradeToOrderBySpread(order))
+                        {
+                            _spreadOrders.RemoveAt(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            else if(order.State == OrderStateType.Cancel
+                    || order.State == OrderStateType.Fail)
+            {
+                for (int i = 0; i < _spreadOrders.Count; i++)
+                {
+                    if (_spreadOrders[i].NumberUser == order.NumberUser)
+                    {
+                        _spreadOrders.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private bool TryGenerateFakeMyTradeToOrderBySpread(Order order)
+        {
+            MyTrade tradeFirst = null;
+
+            MyTrade tradeSecond = null;
+
+            for(int i = 0;i < _spreadMyTrades.Count;i++)
+            {
+                if (_spreadMyTrades[i].NumberOrderParent == order.NumberMarket)
+                {
+                    if(tradeFirst == null)
+                    {
+                        tradeFirst = _spreadMyTrades[i];
+                    }
+                    else if(tradeSecond == null)
+                    {
+                        tradeSecond = _spreadMyTrades[i];
+                        break;
+                    }
+                }
+            }
+
+            if(tradeFirst != null && 
+                tradeSecond != null)
+            {
+                if(order.SecurityNameCode.StartsWith(tradeFirst.SecurityNameCode) == false)
+                {
+                    MyTrade third = tradeFirst;
+                    tradeFirst = tradeSecond;
+                    tradeSecond = third;
+                }
+
+                MyTrade trade = new MyTrade();
+                trade.SecurityNameCode = order.SecurityNameCode;
+                trade.Price = tradeSecond.Price - tradeFirst.Price;
+                trade.Volume = order.Volume;
+                trade.NumberOrderParent = order.NumberMarket;
+                trade.NumberTrade = order.NumberMarket + "fakeSpreadTrade";
+                trade.Time = order.TimeCallBack;
+                trade.Side = order.Side;
+
+                if (MyTradeEvent != null)
+                {
+                    MyTradeEvent(trade);
+                }
+
+                for (int i = 0; i < _spreadMyTrades.Count; i++)
+                {
+                    if (_spreadMyTrades[i].NumberOrderParent == order.NumberMarket)
+                    {
+                        _spreadMyTrades.RemoveAt(i);
+                        i--;
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         private Order ConvertToOsEngineOrder(OrderAlor baseMessage, string portfolioName)
@@ -1690,8 +1914,16 @@ namespace OsEngine.Market.Servers.Alor
             Order order = new Order();
 
             order.SecurityNameCode = baseMessage.symbol;
-            order.Volume = baseMessage.qty.ToDecimal();
 
+            if(string.IsNullOrEmpty(baseMessage.filled) == false 
+                && baseMessage.filled != "0")
+            {
+                order.Volume = baseMessage.filled.ToDecimal();
+            }
+            else
+            {
+                order.Volume = baseMessage.qty.ToDecimal();
+            }
 
             order.PortfolioNumber = portfolioName;
             
@@ -1820,11 +2052,17 @@ namespace OsEngine.Market.Servers.Alor
                 return;
             }
 
-            portf.ValueBegin = baseMessage.portfolioLiquidationValue.ToDecimal();
+            if(portf.ValueBegin == 0)
+            {
+                portf.ValueBegin = baseMessage.portfolioLiquidationValue.ToDecimal();
+            }
+
             portf.ValueCurrent = baseMessage.portfolioLiquidationValue.ToDecimal();
+            
+            portf.ValueBlocked = baseMessage.portfolioLiquidationValue.ToDecimal() - baseMessage.buyingPower.ToDecimal();
+           
             portf.Profit = baseMessage.profit.ToDecimal();
             
-
             if (PortfolioEvent != null)
             {
                 PortfolioEvent(_myPortfolious);
@@ -1851,13 +2089,21 @@ namespace OsEngine.Market.Servers.Alor
 
         private string _sendOrdersArrayLocker = "alorSendOrdersArrayLocker";
 
+        private List<Order> _spreadOrders = new List<Order>();
+
         public void SendOrder(Order order)
         {
             rateGateSendOrder.WaitToProceed();
 
             try
             {
-                if(order.TypeOrder == OrderPriceType.Market)
+                if (order.SecurityClassCode == "Futures spread")
+                { // календарный спред
+                  // сохраняем бумагу для дальнейшего использования
+                    _spreadOrders.Add(order);
+                }
+
+                if (order.TypeOrder == OrderPriceType.Market)
                 {
                     lock (_sendOrdersArrayLocker)
                     {

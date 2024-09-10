@@ -216,6 +216,29 @@ namespace OsEngine.OsTrader.Panels
 
         public BotPanelChartUi _chartUi;
 
+        public void CloseGui()
+        {
+            try
+            {
+                if (_chartUi == null)
+                {
+                    return;
+                }
+
+                if (_chartUi.Dispatcher.CheckAccess() == false)
+                {
+                    _chartUi.Dispatcher.Invoke(CloseGui);
+                    return;
+                }
+
+                _chartUi.Close();
+            }
+            catch (Exception ex)
+            {
+                SendNewLogMessage(ex.ToString(),LogMessageType.Error);
+            }
+        }
+
         void _chartUi_Closed(object sender, EventArgs e)
         {
             _chartUi.Closed -= _chartUi_Closed;
@@ -445,6 +468,18 @@ namespace OsEngine.OsTrader.Panels
         {
             try
             {
+                try
+                {
+                    if (_chartUi != null)
+                    {
+                        _chartUi.Close();
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
                 OsTraderMaster.CriticalErrorEvent -= OsTraderMaster_CriticalErrorEvent;
 
                 if (_riskManager != null)
@@ -542,7 +577,14 @@ namespace OsEngine.OsTrader.Panels
 
                 if (DeleteEvent != null)
                 {
-                    DeleteEvent();
+                    try
+                    {
+                        DeleteEvent();
+                    }
+                    catch(Exception ex)
+                    {
+                        SendNewLogMessage(ex.ToString(), LogMessageType.Error);
+                    }
                 }
             }
             catch (Exception error)
@@ -830,7 +872,24 @@ position => position.State != PositionStateType.OpeningFail
                     {
                         continue;
                     }
-                    pos.AddRange(journals[i].AllPosition);
+
+                    List<Position> allPositionOpen = new List<Position>();
+
+                    for(int i2 = 0;i2 < journals[i].AllPosition.Count;i2++)
+                    {
+                        if (journals[i].AllPosition[i2].State == PositionStateType.OpeningFail)
+                        {
+                            continue;
+                        }
+                        allPositionOpen.Add(journals[i].AllPosition[i2]);
+                    }
+
+                    if (allPositionOpen == null || allPositionOpen.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    pos.AddRange(allPositionOpen);
                 }
                 return pos.Count;
             }
@@ -959,14 +1018,54 @@ position => position.State != PositionStateType.OpeningFail
         /// <param name="collection">values </param>
         public StrategyParameterString CreateParameter(string name, string value, string[] collection, string tabControlName = null)
         {
-            StrategyParameterString newParameter = new StrategyParameterString(name, value, collection.ToList(), tabControlName);
-
             if (_parameters.Find(p => p.Name == name) != null)
             {
                 throw new Exception(OsLocalization.Trader.Label52);
             }
 
-            return (StrategyParameterString)LoadParameterValues(newParameter);
+            bool isInArray = false;
+
+            for (int i = 0; i < collection.Length; i++)
+            {
+                if (collection[i] == value)
+                {
+                    isInArray = true;
+                    break;
+                }
+            }
+
+            if (isInArray == false)
+            {
+                List<string> col = collection.ToList();
+                col.Add(value);
+                collection = col.ToArray();
+            }
+
+            StrategyParameterString newParameter = new StrategyParameterString(name, value, collection.ToList(), tabControlName);
+
+            StrategyParameterString paramFromFileSys = (StrategyParameterString)LoadParameterValues(newParameter);
+
+            if(paramFromFileSys.ValuesString != null &&
+                collection != null)
+            {// проверяем, чтобы программист не изменил названия для коллекции
+                if(paramFromFileSys.ValuesString.Count != collection.Length)
+                {
+                    paramFromFileSys.ValuesString = collection.ToList();
+                }
+                else
+                {
+                    for (int i = 0; i < collection.Length; i++)
+                    {
+                        if (collection[i] != paramFromFileSys.ValuesString[i])
+                        {
+                            paramFromFileSys.ValuesString = collection.ToList();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return paramFromFileSys;
         }
 
         /// <summary>
@@ -1136,9 +1235,16 @@ position => position.State != PositionStateType.OpeningFail
                 SaveParametrs();
             }
 
-            if (ParametrsChangeByUser != null)
+            try
             {
-                ParametrsChangeByUser();
+                if (ParametrsChangeByUser != null)
+                {
+                    ParametrsChangeByUser();
+                }
+            }
+            catch (Exception error)
+            {
+                SendNewLogMessage(error.ToString(), LogMessageType.Error);
             }
         }
 

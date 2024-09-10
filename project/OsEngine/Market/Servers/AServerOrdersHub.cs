@@ -1,4 +1,9 @@
-﻿using System;
+﻿/*
+ *Your rights to use the code are governed by this license https://github.com/AlexWan/OsEngine/blob/master/LICENSE
+ *Ваши права на использование кода регулируются данной лицензией http://o-s-a.net/doc/license_simple_engine.pdf
+*/
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -33,6 +38,12 @@ namespace OsEngine.Market.Servers
 
             _canQueryOrdersAfterReconnect = permission.CanQueryOrdersAfterReconnect;
             _canQueryOrderStatus = permission.CanQueryOrderStatus;
+            _secondsToWaitRequest = permission.WaitTimeSecondsAfterFirstStartToSendOrders;
+
+            if(_secondsToWaitRequest < 15)
+            {
+                _secondsToWaitRequest = 15;
+            }
 
             Thread worker = new Thread(ThreadWorkerArea);
             worker.Name = "AServerOrdersHubThreadWorker";
@@ -161,7 +172,7 @@ namespace OsEngine.Market.Servers
                 return;
             }
 
-            if (_lastDisconnectTime.AddSeconds(15) < DateTime.Now)
+            if (_lastDisconnectTime.AddSeconds(_secondsToWaitRequest) < DateTime.Now)
             {
                 _checkOrdersAfterLastConnect = true;
 
@@ -178,6 +189,8 @@ namespace OsEngine.Market.Servers
         }
 
         private DateTime _lastDisconnectTime;
+
+        private int _secondsToWaitRequest;
 
         private bool _checkOrdersAfterLastConnect = false;
 

@@ -3,9 +3,11 @@ using OsEngine.Entity;
 using OsEngine.Indicators;
 using OsEngine.OsTrader.Panels.Tab;
 using OsEngine.OsTrader.Panels;
+using OsEngine.OsTrader.Panels.Attributes;
 
 namespace OsEngine.Robots.OnScriptIndicators
 {
+    [Bot("TimeOfDayBot")]
     public class TimeOfDayBot : BotPanel
     {
         public TimeOfDayBot(string name, StartProgram startProgram)
@@ -119,17 +121,17 @@ namespace OsEngine.Robots.OnScriptIndicators
 
             if (position.Direction == Side.Buy)
             {
-                stopPrice = position.EntryPrice - position.EntryPrice * (Stop.ValueDecimal / 100);
-                stopActivationPrice = stopPrice - stopPrice * (Slippage.ValueDecimal / 100);
-                profitPrice = position.EntryPrice + position.EntryPrice * (Profit.ValueDecimal / 100);
-                profitActivationPrice = profitPrice - stopPrice * (Slippage.ValueDecimal / 100);
+                stopActivationPrice  = position.EntryPrice - position.EntryPrice * (Stop.ValueDecimal / 100);
+                stopPrice = stopPrice - stopPrice * (Slippage.ValueDecimal / 100);
+                profitActivationPrice = position.EntryPrice + position.EntryPrice * (Profit.ValueDecimal / 100);
+                profitPrice = profitPrice - stopPrice * (Slippage.ValueDecimal / 100);
             }
             if (position.Direction == Side.Sell)
             {
-                stopPrice = position.EntryPrice + position.EntryPrice * (Stop.ValueDecimal / 100);
-                stopActivationPrice = stopPrice + stopPrice * (Slippage.ValueDecimal / 100);
-                profitPrice = position.EntryPrice - position.EntryPrice * (Profit.ValueDecimal / 100);
-                profitActivationPrice = profitPrice + stopPrice * (Slippage.ValueDecimal / 100);
+                stopActivationPrice  = position.EntryPrice + position.EntryPrice * (Stop.ValueDecimal / 100);
+                stopPrice = stopPrice + stopPrice * (Slippage.ValueDecimal / 100);
+                profitActivationPrice  = position.EntryPrice - position.EntryPrice * (Profit.ValueDecimal / 100);
+                profitPrice = profitPrice + stopPrice * (Slippage.ValueDecimal / 100);
             }
 
             _tab.CloseAtStop(position, stopActivationPrice, stopPrice);

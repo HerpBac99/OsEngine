@@ -113,6 +113,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             ButtonCreateTableSecondStep.Click += ButtonCreateTableSecondStep_Click;
             ButtonCreateTableFinal.Click += ButtonCreateTableFinal_Click;
             ButtonCreateSelectedSequence.Click += ButtonCreateSelectedSequence_Click;
+            TextBoxSearchSecurity.KeyDown += TextBoxSearchSecurity_KeyDown;			
 
             Closed += BotTabPolygonAutoSelectSequenceUi_Closed;
         }
@@ -137,6 +138,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             ButtonCreateTableSecondStep.Click -= ButtonCreateTableSecondStep_Click;
             ButtonCreateTableFinal.Click -= ButtonCreateTableFinal_Click;
             ButtonCreateSelectedSequence.Click -= ButtonCreateSelectedSequence_Click;
+            TextBoxSearchSecurity.KeyDown -= TextBoxSearchSecurity_KeyDown;		
             Closed -= BotTabPolygonAutoSelectSequenceUi_Closed;
 
             List<IServer> serversAll = ServerMaster.GetServers();
@@ -410,7 +412,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             // number, class, type, name, full name, additional name, on/off
 
             DataGridView newGrid =
-                DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.DisplayedCells);
+                DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.AllCells);
 
             newGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             newGrid.ScrollBars = ScrollBars.Vertical;
@@ -701,6 +703,45 @@ namespace OsEngine.OsTrader.Panels.Tab
             _gridSecuritiesFirstStep.FirstDisplayedScrollingRowIndex = realInd;
         }
 
+        private void TextBoxSearchSecurity_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            try
+            {
+                if (e.Key == Key.Enter)
+                {
+                    int rowIndex = 0;
+                    for (int i = 0; i < _gridSecuritiesFirstStep.Rows.Count; i++)
+                    {
+                        if (_gridSecuritiesFirstStep.Rows[i].Selected == true)
+                        {
+                            rowIndex = i;
+                            break;
+                        }
+                        if (i == _gridSecuritiesFirstStep.Rows.Count - 1)
+                        {
+                            return;
+                        }
+                    }
+
+                    DataGridViewCheckBoxCell checkBox = (DataGridViewCheckBoxCell)_gridSecuritiesFirstStep.Rows[rowIndex].Cells[6];
+                    if (Convert.ToBoolean(checkBox.Value) == false)
+                    {
+                        checkBox.Value = true;
+                        TextBoxSearchSecurity.Text = "";
+                    }
+                    else
+                    {
+                        checkBox.Value = false;
+                        TextBoxSearchSecurity.Text = "";
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                SendNewLogMessage(error.ToString(), LogMessageType.Error);
+            }		
+        }
+
         #endregion
 
         /// <summary>
@@ -728,7 +769,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             // number, currency, entry count, exit count, on/off
 
             DataGridView newGrid =
-                DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.DisplayedCells);
+                DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.AllCells);
 
             newGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             newGrid.ScrollBars = ScrollBars.Vertical;
@@ -1014,7 +1055,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             // number, step 1, step 2, step 3, on/off
 
             DataGridView newGrid =
-                DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.DisplayedCells);
+                DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.AllCells);
 
             newGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             newGrid.ScrollBars = ScrollBars.Vertical;

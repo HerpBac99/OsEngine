@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using WebSocketSharp;
 using OsEngine.Market.Servers.HTX.Spot.Entity;
+using OsEngine.Market.Servers.HTX.Entity;
 using RestSharp;
 using System.IO.Compression;
 using System.IO;
@@ -58,7 +59,14 @@ namespace OsEngine.Market.Servers.HTX.Spot
         {
             _accessKey = ((ServerParameterString)ServerParameters[0]).Value;
             _secretKey = ((ServerParameterString)ServerParameters[1]).Value;
-            
+
+            if (string.IsNullOrEmpty(_accessKey) ||
+                string.IsNullOrEmpty(_secretKey))
+            {
+                SendLogMessage("Can`t run HTX connector. No keys", LogMessageType.Error);
+                return;
+            }
+
             string url = $"https://{_baseUrl}/v2/market-status";
             RestClient client = new RestClient(url);
             RestRequest request = new RestRequest(Method.GET);
@@ -93,6 +101,12 @@ namespace OsEngine.Market.Servers.HTX.Spot
 
         public void Dispose()
         {
+            if (ServerStatus != ServerConnectStatus.Disconnect)
+            {
+                ServerStatus = ServerConnectStatus.Disconnect;
+                DisconnectEvent();
+            }
+
             try
             {
                 UnsubscribeFromAllWebSockets();
@@ -117,12 +131,6 @@ namespace OsEngine.Market.Servers.HTX.Spot
 
             _FIFOListWebSocketPublicMessage = new ConcurrentQueue<string>();
             _FIFOListWebSocketPrivateMessage = new ConcurrentQueue<string>();
-                       
-            if (ServerStatus != ServerConnectStatus.Disconnect)
-            {
-                ServerStatus = ServerConnectStatus.Disconnect;
-                DisconnectEvent();
-            }
         }
 
         public ServerType ServerType
@@ -526,21 +534,38 @@ namespace OsEngine.Market.Servers.HTX.Spot
         private WebSocket _webSocketPrivate;
 
         private void CreateWebSocketConnection()
-        {            
-            _webSocketPublic = new WebSocket(_webSocketUrlPublic);            
+        {
+            _publicSocketActivate = false;
+            _privateSocketActivate = false;
+
+            _webSocketPublic = new WebSocket(_webSocketUrlPublic);
             _webSocketPublic.SslConfiguration.EnabledSslProtocols = SslProtocols.Tls12;
             _webSocketPublic.OnOpen += webSocketPublic_OnOpen;
             _webSocketPublic.OnMessage += webSocketPublic_OnMessage;
             _webSocketPublic.OnError += webSocketPublic_OnError;
             _webSocketPublic.OnClose += webSocketPublic_OnClose;
 
-            _webSocketPublic.Connect();          
+            _webSocketPublic.Connect();
+
+            _webSocketPrivate = new WebSocket(_webSocketUrlPrivate);
+            _webSocketPrivate.SslConfiguration.EnabledSslProtocols = SslProtocols.Tls12;
+            _webSocketPrivate.OnOpen += webSocketPrivate_OnOpen;
+            _webSocketPrivate.OnMessage += webSocketPrivate_OnMessage;
+            _webSocketPrivate.OnError += webSocketPrivate_OnError;
+            _webSocketPrivate.OnClose += webSocketPrivate_OnClose;
+
+            _webSocketPrivate.Connect();
         }
 
         private void DeleteWebscoektConnection()
         {
             if (_webSocketPublic != null)
             {
+                _webSocketPublic.OnOpen -= webSocketPublic_OnOpen;
+                _webSocketPublic.OnMessage -= webSocketPublic_OnMessage;
+                _webSocketPublic.OnError -= webSocketPublic_OnError;
+                _webSocketPublic.OnClose -= webSocketPublic_OnClose;
+               
                 try
                 {
                     _webSocketPublic.Close();
@@ -549,13 +574,57 @@ namespace OsEngine.Market.Servers.HTX.Spot
                 {
                     // ignore
                 }
-
-                _webSocketPublic.OnOpen -= webSocketPublic_OnOpen;
-                _webSocketPublic.OnMessage -= webSocketPublic_OnMessage;
-                _webSocketPublic.OnError -= webSocketPublic_OnError;
-                _webSocketPublic.OnClose -= webSocketPublic_OnClose;
                 _webSocketPublic = null;
-            }           
+            }
+
+            if (_webSocketPrivate != null)
+            {
+                _webSocketPrivate.OnOpen -= webSocketPrivate_OnOpen;
+                _webSocketPrivate.OnMessage -= webSocketPrivate_OnMessage;
+                _webSocketPrivate.OnError -= webSocketPrivate_OnError;
+                _webSocketPrivate.OnClose -= webSocketPrivate_OnClose;
+               
+                try
+                {
+                    _webSocketPrivate.Close();
+                }
+                catch
+                {
+                    // ignore
+                }
+                _webSocketPrivate = null;
+            }
+        }
+
+        private bool _publicSocketActivate = false;
+
+        private bool _privateSocketActivate = false;
+
+        private string _lockerCheckActivateionSockets = "lockerCheckActivateionSockets";
+
+        private void CheckActivationSockets()
+        {
+            lock (_lockerCheckActivateionSockets)
+            {
+                if(_publicSocketActivate == false)
+                {
+                    return;
+                }
+                if (_privateSocketActivate == false)
+                {
+                    return;
+                }
+
+                if(ServerStatus == ServerConnectStatus.Disconnect)
+                {
+                    ServerStatus = ServerConnectStatus.Connect;
+
+                    if(ConnectEvent != null)
+                    {
+                        ConnectEvent();
+                    }
+                }
+            }
         }
 
         #endregion
@@ -565,6 +634,7 @@ namespace OsEngine.Market.Servers.HTX.Spot
         private void webSocketPublic_OnError(object sender, WebSocketSharp.ErrorEventArgs e)
         {
             WebSocketSharp.ErrorEventArgs error = e;
+
             if (error.Exception != null)
             {
                 SendLogMessage(error.Exception.ToString(), LogMessageType.Error);
@@ -605,52 +675,27 @@ namespace OsEngine.Market.Servers.HTX.Spot
 
         private void webSocketPublic_OnClose(object sender, CloseEventArgs e)
         {
-            if (DisconnectEvent != null && ServerStatus != ServerConnectStatus.Disconnect)
+            if (DisconnectEvent != null 
+                && ServerStatus != ServerConnectStatus.Disconnect)
             {
                 SendLogMessage("Connection Closed by HTXSpot. WebSocket Public Closed Event", LogMessageType.System);
-
-                if (_webSocketPrivate != null)
-                {
-                    try
-                    {
-                        _webSocketPrivate.Close();
-                    }
-                    catch
-                    {
-                        // ignore
-                    }
-
-                    _webSocketPrivate.OnOpen -= webSocketPrivate_OnOpen;
-                    _webSocketPrivate.OnMessage -= webSocketPrivate_OnMessage;
-                    _webSocketPrivate.OnError -= webSocketPrivate_OnError;
-                    _webSocketPrivate.OnClose -= webSocketPrivate_OnClose;
-                    _webSocketPrivate = null;
-                }
             }
+            ServerStatus = ServerConnectStatus.Disconnect;
+            DisconnectEvent();
         }
 
         private void webSocketPublic_OnOpen(object sender, EventArgs e)
         {
             SendLogMessage("Connection Websocket Public Open", LogMessageType.System);
-            if (ServerStatus != ServerConnectStatus.Connect 
-                && _webSocketPublic != null
-                && _webSocketPublic.ReadyState == WebSocketState.Open
-                )
-            {
-                _webSocketPrivate = new WebSocket(_webSocketUrlPrivate);
-                _webSocketPrivate.SslConfiguration.EnabledSslProtocols = SslProtocols.Tls12;
-                _webSocketPrivate.OnOpen += webSocketPrivate_OnOpen;
-                _webSocketPrivate.OnMessage += webSocketPrivate_OnMessage;
-                _webSocketPrivate.OnError += webSocketPrivate_OnError;
-                _webSocketPrivate.OnClose += webSocketPrivate_OnClose;
 
-                _webSocketPrivate.Connect();
-            }                      
+            _publicSocketActivate = true;
+            CheckActivationSockets();
         }
 
         private void webSocketPrivate_OnError(object sender, WebSocketSharp.ErrorEventArgs e)
         {
             WebSocketSharp.ErrorEventArgs error = e;
+
             if (error.Exception != null)
             {
                 SendLogMessage(error.Exception.ToString(), LogMessageType.Error);
@@ -691,7 +736,8 @@ namespace OsEngine.Market.Servers.HTX.Spot
 
         private void webSocketPrivate_OnClose(object sender, CloseEventArgs e)
         {
-            if (DisconnectEvent != null && ServerStatus != ServerConnectStatus.Disconnect)
+            if (DisconnectEvent != null 
+                & ServerStatus != ServerConnectStatus.Disconnect)
             {
                 SendLogMessage("Connection Closed by HTXSpot. WebSocket Private Closed Event", LogMessageType.System);
                 ServerStatus = ServerConnectStatus.Disconnect;
@@ -703,14 +749,18 @@ namespace OsEngine.Market.Servers.HTX.Spot
         {
             SendLogMessage("Connection Websocket Private Open", LogMessageType.System);
 
-            if (ServerStatus != ServerConnectStatus.Connect               
-                && _webSocketPrivate != null
-                && _webSocketPrivate.ReadyState == WebSocketState.Open)
+            _privateSocketActivate = true;
+            CheckActivationSockets();
+
+            try
             {
-                ServerStatus = ServerConnectStatus.Connect;
-                ConnectEvent();
+                string authRequest = BuildSign(DateTime.UtcNow);
+                _webSocketPrivate.Send(authRequest);
             }
-            CreateAuthMessageWebSocket();
+            catch
+            {
+
+            }
         }
 
         #endregion
@@ -1057,7 +1107,16 @@ namespace OsEngine.Market.Servers.HTX.Spot
                 newOrder.SecurityNameCode = item.symbol;
                 newOrder.TimeCallBack = TimeManager.GetDateTimeFromTimeStamp(long.Parse(item.tradeTime));
                 newOrder.TimeCreate = TimeManager.GetDateTimeFromTimeStamp(long.Parse(item.orderCreateTime));
-                newOrder.NumberUser = Convert.ToInt32(item.clientOrderId);
+
+                try
+                {
+                    newOrder.NumberUser = Convert.ToInt32(item.clientOrderId);
+                }
+                catch
+                {
+                    //ignore
+                }
+               
                 newOrder.NumberMarket = item.orderId.ToString();
                 newOrder.Side = item.orderSide.Equals("buy") ? Side.Buy : Side.Sell;
                 newOrder.State = GetOrderState(item.orderStatus);
@@ -1093,10 +1152,6 @@ namespace OsEngine.Market.Servers.HTX.Spot
                 return;
             }
 
-            if (string.IsNullOrEmpty(item.clientOrderId))
-            {
-                return;
-            }
             if (item.eventType.Equals("creation") || item.eventType.Equals("cancellation"))
             {
                 Order newOrder = new Order();
@@ -1112,8 +1167,17 @@ namespace OsEngine.Market.Servers.HTX.Spot
                 }
                 
                 newOrder.ServerType = ServerType.HTXSpot;
-                newOrder.SecurityNameCode = item.symbol;                
-                newOrder.NumberUser = Convert.ToInt32(item.clientOrderId);
+                newOrder.SecurityNameCode = item.symbol;           
+                
+                try
+                {
+                    newOrder.NumberUser = Convert.ToInt32(item.clientOrderId);
+                }
+                catch
+                {
+                    // ignore
+                }
+
                 newOrder.NumberMarket = item.orderId.ToString();
                 newOrder.Side = item.type.Split('-')[0].Equals("buy") ? Side.Buy : Side.Sell;
                 newOrder.State = GetOrderState(item.orderStatus);
@@ -1294,12 +1358,331 @@ namespace OsEngine.Market.Servers.HTX.Spot
 
         public void GetAllActivOrders()
         {
+            List<Order> orders = GetAllOrdersFromExchange();
 
+            for (int i = 0; orders != null && i < orders.Count; i++)
+            {
+                if (orders[i] == null)
+                {
+                    continue;
+                }
+
+                if (orders[i].State != OrderStateType.Activ
+                    && orders[i].State != OrderStateType.Patrial
+                    && orders[i].State != OrderStateType.Pending)
+                {
+                    continue;
+                }
+
+                orders[i].TimeCreate = orders[i].TimeCallBack;
+
+                if (MyOrderEvent != null)
+                {
+                    MyOrderEvent(orders[i]);
+                }
+            }
+        }
+
+        private List<Order> GetAllOrdersFromExchange()
+        {
+            List<Order> orders = new List<Order>();
+
+            try
+            {
+                string url = _privateUriBuilder.Build("GET", $"/v1/order/history");
+
+                RestClient client = new RestClient(url);
+                RestRequest request = new RestRequest(Method.GET);
+                IRestResponse responseMessage = client.Execute(request);
+
+                ResponseMessageAllOrders response = JsonConvert.DeserializeObject<ResponseMessageAllOrders>(responseMessage.Content);
+
+                List<ResponseMessageAllOrders.Data> item = response.data;
+
+                if (responseMessage.Content.Contains("error"))
+                {
+                    SendLogMessage($"GetAllOrder. Http State Code: {responseMessage.Content}", LogMessageType.Error);
+                }
+                else
+                {
+                    if (item != null && item.Count > 0)
+                    {
+                        for (int i = 0; i < item.Count; i++)
+                        {
+                            if (item[i].client_order_id == null || item[i].client_order_id == "")
+                            {
+                                continue;
+                            }
+
+                            if (!item[i].source.Contains("api"))
+                            {
+                                continue;
+                            }
+
+                            Order newOrder = new Order();
+
+                            newOrder.TimeCallBack = TimeManager.GetDateTimeFromTimeStamp(long.Parse(item[i].created_at));
+                            newOrder.TimeCreate = TimeManager.GetDateTimeFromTimeStamp(long.Parse(item[i].created_at));
+                            newOrder.ServerType = ServerType.HTXSpot;
+                            newOrder.SecurityNameCode = item[i].symbol;
+                            newOrder.NumberUser = Convert.ToInt32(item[i].client_order_id);
+                            newOrder.NumberMarket = item[i].id.ToString();                            
+                            newOrder.State = GetOrderState(item[i].state);
+                            newOrder.Volume = item[i].amount.ToDecimal();
+                            newOrder.Price = item[i].price.ToDecimal();
+                            
+                            if (item[i].type.Split('-')[1] == "market")
+                            {
+                                newOrder.TypeOrder = OrderPriceType.Market;
+                            }
+                            if (item[i].type.Split('-')[1] == "limit")
+                            {
+                                newOrder.TypeOrder = OrderPriceType.Limit;
+                            }
+
+                            if (item[i].type.Split('-')[0] == "buy")
+                            {
+                                newOrder.Side = Side.Buy;
+                            }
+                            else
+                            {
+                                newOrder.Side = Side.Sell;
+                            }
+
+                            string source = "spot";
+                            if (item[i].source == "margin-api")
+                            {
+                                source = "margin";
+                            }
+                            if (item[i].source == "super-margin-api")
+                            {
+                                source = "super-margin";
+                            }
+
+                            newOrder.PortfolioNumber = $"HTX_{source}_{item[i].account_id}_Portfolio";
+
+                            orders.Add(newOrder);
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                SendLogMessage(exception.ToString(), LogMessageType.Error);
+            }
+            return orders;
         }
 
         public void GetOrderStatus(Order order)
         {
+            List<Order> orders = GetAllOrdersFromExchange();
 
+            if (orders == null ||
+                orders.Count == 0)
+            {
+                return;
+            }
+
+            Order orderOnMarket = null;
+
+            for (int i = 0; i < orders.Count; i++)
+            {
+                Order curOder = orders[i];
+
+                if (order.NumberUser != 0
+                    && curOder.NumberUser != 0
+                    && curOder.NumberUser == order.NumberUser)
+                {
+                    orderOnMarket = curOder;
+                    break;
+                }
+
+                if (string.IsNullOrEmpty(order.NumberMarket) == false
+                    && order.NumberMarket == curOder.NumberMarket)
+                {
+                    orderOnMarket = curOder;
+                    break;
+                }
+            }
+
+            if (orderOnMarket == null)
+            {
+                return;
+            }
+
+            if (orderOnMarket != null &&
+                MyOrderEvent != null)
+            {
+                MyOrderEvent(orderOnMarket);
+            }
+
+            if (orderOnMarket.State == OrderStateType.Done
+                || orderOnMarket.State == OrderStateType.Patrial)
+            {
+                List<MyTrade> tradesBySecurity
+                    = GetMyTradesBySecurity(orderOnMarket.NumberMarket);
+
+                if (tradesBySecurity == null)
+                {
+                    return;
+                }
+
+                List<MyTrade> tradesByMyOrder = new List<MyTrade>();
+
+                for (int i = 0; i < tradesBySecurity.Count; i++)
+                {
+                    if (tradesBySecurity[i].NumberOrderParent == orderOnMarket.NumberMarket)
+                    {
+                        tradesByMyOrder.Add(tradesBySecurity[i]);
+                    }
+                }
+
+                for (int i = 0; i < tradesByMyOrder.Count; i++)
+                {
+                    if (MyTradeEvent != null)
+                    {
+                        MyTradeEvent(tradesByMyOrder[i]);
+                    }
+                }
+            }
+        }
+
+        private Order GetOrderFromExchange(string numberMarket)
+        {
+            Order newOrder = new Order();
+
+            try
+            {                
+                string url = _privateUriBuilder.Build("GET", $"/v1/order/orders/{numberMarket}");
+
+                RestClient client = new RestClient(url);
+                RestRequest request = new RestRequest(Method.GET);                
+                IRestResponse responseMessage = client.Execute(request);
+
+                ResponseMessageGetOrder response = JsonConvert.DeserializeObject<ResponseMessageGetOrder>(responseMessage.Content);
+
+                ResponseMessageGetOrder.Data item = response.data;
+
+                if (responseMessage.Content.Contains("error"))
+                {
+                    SendLogMessage($"GetOrderFromExchange. Http State Code: {responseMessage.Content}", LogMessageType.Error);
+                }
+                else
+                {
+                    newOrder.TimeCallBack = TimeManager.GetDateTimeFromTimeStamp(long.Parse(item.created_at));
+                    newOrder.TimeCreate = TimeManager.GetDateTimeFromTimeStamp(long.Parse(item.created_at));
+                    newOrder.ServerType = ServerType.HTXSpot;
+                    newOrder.SecurityNameCode = item.symbol;
+                    newOrder.NumberUser = Convert.ToInt32(item.client_order_id);
+                    newOrder.NumberMarket = item.id.ToString();
+                    newOrder.State = GetOrderState(item.state);
+                    newOrder.Volume = item.amount.ToDecimal();
+                    newOrder.Price = item.price.ToDecimal();
+
+                    if (item.type.Split('-')[1] == "market")
+                    {
+                        newOrder.TypeOrder = OrderPriceType.Market;
+                    }
+                    if (item.type.Split('-')[1] == "limit")
+                    {
+                        newOrder.TypeOrder = OrderPriceType.Limit;
+                    }
+
+                    if (item.type.Split('-')[0] == "buy")
+                    {
+                        newOrder.Side = Side.Buy;
+                    }
+                    else
+                    {
+                        newOrder.Side = Side.Sell;
+                    }
+
+                    string source = "spot";
+                    if (item.source == "margin-api")
+                    {
+                        source = "margin";
+                    }
+                    if (item.source == "super-margin-api")
+                    {
+                        source = "super-margin";
+                    }
+
+                    newOrder.PortfolioNumber = $"HTX_{source}_{item.account_id}_Portfolio";
+
+                }
+            }
+            catch (Exception exception)
+            {
+                SendLogMessage(exception.ToString(), LogMessageType.Error);
+            }
+            return newOrder;
+        }
+
+        private List<MyTrade> GetMyTradesBySecurity(string orderId)
+        {
+            try
+            {
+                string url = _privateUriBuilder.Build("GET", $"/v1/order/orders/{orderId}/matchresults");
+
+                RestClient client = new RestClient(url);
+                RestRequest request = new RestRequest(Method.GET);
+                IRestResponse responseMessage = client.Execute(request);
+
+                string respString = responseMessage.Content;
+
+                if (!respString.Contains("error"))
+                {
+                    ResponseMessageGetMyTradesBySecurity orderResponse = JsonConvert.DeserializeObject<ResponseMessageGetMyTradesBySecurity>(respString);
+
+                    List<MyTrade> osEngineOrders = new List<MyTrade>();
+
+                    List<ResponseMessageGetMyTradesBySecurity.Data> item = orderResponse.data;
+
+                    if (item != null && item.Count > 0)
+                    {
+                        for (int i = 0; i < item.Count; i++)
+                        {
+                            MyTrade newTrade = new MyTrade();
+                            newTrade.SecurityNameCode = item[i].symbol;
+                            newTrade.NumberTrade = item[i].trade_id;
+                            newTrade.NumberOrderParent = item[i].order_id;
+                            newTrade.Volume = item[i].filled_amount.ToDecimal();
+                            newTrade.Price = item[i].price.ToDecimal();
+                            newTrade.Time = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(item[i].created_at));
+
+                            if (item[i].type.Split('-')[0] == "buy")
+                            {
+                                newTrade.Side = Side.Buy;
+                            }
+                            else
+                            {
+                                newTrade.Side = Side.Sell;
+                            }
+                            osEngineOrders.Add(newTrade);
+                        }
+                    }
+                    return osEngineOrders;
+                }
+                else if (responseMessage.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+                else
+                {
+                    SendLogMessage("GetMyTradesBySecurity request error. ", LogMessageType.Error);
+
+                    if (responseMessage.Content != null)
+                    {
+                        SendLogMessage("Fail reasons: "
+                      + responseMessage.Content, LogMessageType.Error);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                SendLogMessage("GetMyTradesBySecurity request error." + exception.ToString(), LogMessageType.Error);
+            }
+            return null;
         }
 
         #endregion
@@ -1372,36 +1755,36 @@ namespace OsEngine.Market.Servers.HTX.Spot
             }
         }
 
-        private void CreateAuthMessageWebSocket()
-        {
-            string authRequest = BuildSign(DateTime.UtcNow);
-            _webSocketPrivate.Send(authRequest);
-        }
-
         private void UnsubscribeFromAllWebSockets()
         {
-            if (_webSocketPublic == null)
+            if (_webSocketPublic != null)
             {
-                return;
-            }
-            else
-            {
-                for (int i = 0; i < _arrayPublicChannels.Count; i++)
+                try
                 {
-                    _webSocketPublic.Send($"{{\"action\": \"unsub\",\"ch\": \"{_arrayPublicChannels[i]}\"}}");
+                    for (int i = 0; i < _arrayPublicChannels.Count; i++)
+                    {
+                        _webSocketPublic.Send($"{{\"action\": \"unsub\",\"ch\": \"{_arrayPublicChannels[i]}\"}}");
+                    }
+                }
+                catch
+                {
+                    // ignore
                 }
             }
 
-            if (_webSocketPrivate == null)
+            if (_webSocketPrivate != null)
             {
-                return;
-            }
-            else
-            {
-                for (int i = 0; i < _arrayPrivateChannels.Count; i++)
+                try
                 {
+                    for (int i = 0; i < _arrayPrivateChannels.Count; i++)
+                    {
 
-                    _webSocketPrivate.Send($"{{\"action\": \"unsub\",\"ch\": \"{_arrayPrivateChannels[i]}\"}}");
+                        _webSocketPrivate.Send($"{{\"action\": \"unsub\",\"ch\": \"{_arrayPrivateChannels[i]}\"}}");
+                    }
+                }
+                catch
+                {
+                    // ignore
                 }
             }
         }

@@ -461,9 +461,9 @@ namespace OsEngine.OsTrader.Panels.Tab
                 using (StreamReader reader = new StreamReader(@"Engine\" + TabName + @"StandartPairsSettings.txt"))
                 {
                     Sec1Slippage = reader.ReadLine().ToDecimal();
-                    Sec1Volume = Convert.ToInt32(reader.ReadLine());
+                    Sec1Volume = reader.ReadLine().ToDecimal();
                     Sec2Slippage = reader.ReadLine().ToDecimal();
-                    Sec2Volume = Convert.ToInt32(reader.ReadLine());
+                    Sec2Volume = reader.ReadLine().ToDecimal();
                     CorrelationLookBack = Convert.ToInt32(reader.ReadLine());
                     CointegrationDeviation = reader.ReadLine().ToDecimal();
                     CointegrationLookBack = Convert.ToInt32(reader.ReadLine());
@@ -1511,7 +1511,11 @@ namespace OsEngine.OsTrader.Panels.Tab
             nRow.Cells[2].Value = "bid: " + pair.Tab1.PriceBestBid.ToStringWithNoEndZero();
 
             nRow.Cells.Add(new DataGridViewTextBoxCell());
-            nRow.Cells[3].Value = pair.Tab1.Connector.ServerType.ToString();
+
+            if(pair.Tab1.Connector != null)
+            {
+                nRow.Cells[3].Value = pair.Tab1.Connector.ServerType.ToString();
+            }
 
             nRow.Cells.Add(new DataGridViewTextBoxCell());
             nRow.Cells[4].Value = "pos: " + pair.Tab1.VolumeNetto.ToStringWithNoEndZero();
@@ -1545,7 +1549,11 @@ namespace OsEngine.OsTrader.Panels.Tab
             nRow.Cells[2].Value = "bid: " + pair.Tab2.PriceBestBid.ToStringWithNoEndZero();
 
             nRow.Cells.Add(new DataGridViewTextBoxCell());
-            nRow.Cells[3].Value = pair.Tab2.Connector.ServerType.ToString();
+
+            if (pair.Tab2.Connector != null)
+            {
+                nRow.Cells[3].Value = pair.Tab2.Connector.ServerType.ToString();
+            }
 
             nRow.Cells.Add(new DataGridViewTextBoxCell());
             nRow.Cells[4].Value = "pos: " + pair.Tab2.VolumeNetto.ToStringWithNoEndZero();
@@ -1889,9 +1897,9 @@ namespace OsEngine.OsTrader.Panels.Tab
                     PairNum = Convert.ToInt32(reader.ReadLine());
 
                     Sec1Slippage = reader.ReadLine().ToDecimal();
-                    Sec1Volume = Convert.ToInt32(reader.ReadLine());
+                    Sec1Volume = reader.ReadLine().ToDecimal();
                     Sec2Slippage = reader.ReadLine().ToDecimal();
-                    Sec2Volume = Convert.ToInt32(reader.ReadLine());
+                    Sec2Volume = reader.ReadLine().ToDecimal();
                     CorrelationLookBack = Convert.ToInt32(reader.ReadLine());
                     CointegrationDeviation = reader.ReadLine().ToDecimal();
                     CointegrationLookBack = Convert.ToInt32(reader.ReadLine());
@@ -2259,6 +2267,13 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
 
                 volume = volumeValue / lastPrice;
+
+                Security mySec = tab.Securiti;
+
+                if(mySec.Lot > 1)
+                {
+                    volume = volume / mySec.Lot;
+                }
             }
             else if (volumeType == PairTraderVolumeType.Contract)
             {

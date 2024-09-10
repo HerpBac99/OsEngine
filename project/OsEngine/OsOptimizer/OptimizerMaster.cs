@@ -184,8 +184,15 @@ namespace OsEngine.OsOptimizer
         /// <param name="maxVal">maximum progress bar/максимальное значение прогрессБара</param>
         void _optimizerExecutor_PrimeProgressChangeEvent(int curVal, int maxVal)
         {
-            PrimeProgressBarStatus.CurrentValue = curVal;
-            PrimeProgressBarStatus.MaxValue = maxVal;
+            if(PrimeProgressBarStatus.CurrentValue != curVal)
+            {
+                PrimeProgressBarStatus.CurrentValue = curVal;
+            }
+
+            if(PrimeProgressBarStatus.MaxValue != maxVal)
+            {
+                PrimeProgressBarStatus.MaxValue = maxVal;
+            }
         }
 
         /// <summary>
@@ -196,7 +203,11 @@ namespace OsEngine.OsOptimizer
         /// <param name="botsOutOfSample">OutOfSample</param>
         void _optimizerExecutor_TestReadyEvent(List<OptimazerFazeReport> reports)
         {
-            PrimeProgressBarStatus.CurrentValue = PrimeProgressBarStatus.MaxValue;
+            if(PrimeProgressBarStatus.CurrentValue != PrimeProgressBarStatus.MaxValue)
+            {
+                PrimeProgressBarStatus.CurrentValue = PrimeProgressBarStatus.MaxValue;
+            }
+
             if (TestReadyEvent != null)
             {
                 TestReadyEvent(reports);
@@ -602,6 +613,11 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         public bool IsAcceptedByFilter(OptimizerReport report)
         {
+            if(report == null)
+            {
+                return false;
+            }
+
             if (FilterMiddleProfitIsOn && report.AverageProfitPercentOneContract < FilterMiddleProfitValue)
             {
                 return false;
@@ -717,7 +733,7 @@ namespace OsEngine.OsOptimizer
 
         private bool _lastInSample;
 
-        private decimal GetInSampleRecurs(decimal curLenghtInSample,int fazeCount, bool lastInSample, int allDays)
+        private decimal GetInSampleRecurs(decimal curLengthInSample,int fazeCount, bool lastInSample, int allDays)
         {
             // х = Y + Y/P * С;
             // x - общая длинна в днях. Уже известна
@@ -725,7 +741,7 @@ namespace OsEngine.OsOptimizer
             // P - процент OutOfSample от InSample
             // C - количество отрезков
 
-            decimal outOfSampleLength = curLenghtInSample * (_percentOnFilration / 100);
+            decimal outOfSampleLength = curLengthInSample * (_percentOnFilration / 100);
 
             int count = fazeCount;
 
@@ -734,16 +750,16 @@ namespace OsEngine.OsOptimizer
                 count--;
             }
 
-            int allLenght = Convert.ToInt32(curLenghtInSample + outOfSampleLength * count);
+            int allLength = Convert.ToInt32(curLengthInSample + outOfSampleLength * count);
 
-            if(allLenght > allDays)
+            if(allLength > allDays)
             {
-                curLenghtInSample--;
-                return GetInSampleRecurs(curLenghtInSample, fazeCount, lastInSample, allDays);
+                curLengthInSample--;
+                return GetInSampleRecurs(curLengthInSample, fazeCount, lastInSample, allDays);
             }
             else
             {
-                return curLenghtInSample;
+                return curLengthInSample;
             }
         }
 
@@ -1187,8 +1203,11 @@ namespace OsEngine.OsOptimizer
                 return false;
             }
 
-            if (string.IsNullOrEmpty(Storage.ActiveSet) ||
-                Storage.SecuritiesTester == null ||
+            if ((string.IsNullOrEmpty(Storage.ActiveSet) 
+                && Storage.SourceDataType == TesterSourceDataType.Set)
+                ||
+                Storage.SecuritiesTester == null 
+                ||
                 Storage.SecuritiesTester.Count == 0)
             {
                 CustomMessageBoxUi ui = new CustomMessageBoxUi(OsLocalization.Optimizer.Message16);
@@ -1212,6 +1231,40 @@ namespace OsEngine.OsOptimizer
                     NeadToMoveUiToEvent(NeadToMoveUiTo.NameStrategy);
                 }
                 return false;
+            }
+
+            // проверяем наличие тайм-фрейма в обойме
+
+            for (int i = 0; i < TabsSimpleNamesAndTimeFrames.Count; i++)
+            {
+                TabSimpleEndTimeFrame curFrame = TabsSimpleNamesAndTimeFrames[i];
+
+                bool isInArray = false;
+
+                for(int j = 0; j < Storage.SecuritiesTester.Count;j++)
+                {
+                    if (Storage.SecuritiesTester[j].Security.Name == curFrame.NameSecurity
+                        && 
+                        (Storage.SecuritiesTester[j].TimeFrame == curFrame.TimeFrame 
+                        || Storage.SecuritiesTester[j].TimeFrame == TimeFrame.Sec1
+                        || Storage.SecuritiesTester[j].TimeFrame == TimeFrame.Tick))
+                    {
+                        isInArray = true;
+                    }
+                }
+
+                if(isInArray == false)
+                {
+                    CustomMessageBoxUi ui = new CustomMessageBoxUi(OsLocalization.Optimizer.Message43);
+                    ui.ShowDialog();
+                    SendLogMessage(OsLocalization.Optimizer.Message43, LogMessageType.System);
+
+                    if (NeadToMoveUiToEvent != null)
+                    {
+                        NeadToMoveUiToEvent(NeadToMoveUiTo.NameStrategy);
+                    }
+                    return false;
+                }
             }
 
             bool onParamesReady = false;
@@ -1244,9 +1297,17 @@ namespace OsEngine.OsOptimizer
 
             for (int i = 0; i < _parameters.Count; i++)
             {
-                if (_parameters[i].Name == "Regime")
+                if (_parameters[i].Name == "Regime" && _parameters[i].Type == StrategyParameterType.String)
                 {
                     if (((StrategyParameterString)_parameters[i]).ValueString == "Off")
+                    {
+                        onRgimeOff = true;
+                    }
+                }
+
+                else if (_parameters[i].Name == "Regime" && _parameters[i].Type == StrategyParameterType.CheckBox)
+                {
+                    if (((StrategyParameterCheckBox)_parameters[i]).CheckState == System.Windows.Forms.CheckState.Unchecked)
                     {
                         onRgimeOff = true;
                     }
@@ -1399,6 +1460,11 @@ namespace OsEngine.OsOptimizer
         /// номер сервера / робота
         /// </summary>
         public int Num;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool IsFinalized;
     }
 
     /// <summary>

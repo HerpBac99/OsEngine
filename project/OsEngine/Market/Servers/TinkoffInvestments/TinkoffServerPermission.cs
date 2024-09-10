@@ -104,6 +104,11 @@ namespace OsEngine.Market.Servers.TinkoffInvestments
             get { return true; }
         }
 
+        public bool DataFeedTfDayCanLoad
+        {
+            get { return true; }
+        }
+
         #endregion
 
         #region Trade permission
@@ -191,12 +196,12 @@ namespace OsEngine.Market.Servers.TinkoffInvestments
 
         public bool CanQueryOrdersAfterReconnect
         {
-            get { return false; }
+            get { return true; }
         }
 
         public bool CanQueryOrderStatus
         {
-            get { return false; }
+            get { return true; }
         }
 
         #endregion

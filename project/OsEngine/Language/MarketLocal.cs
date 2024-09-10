@@ -516,6 +516,50 @@ namespace OsEngine.Language
             "Eng:Change of order price. Number _" +
             "Ru:Смена цены ордера. Номер _");
 
+        public string Label121 => OsLocalization.ConvertToLocString(
+            "Eng:You can set a client code if your broker (BСS / VTB / etc) requires it. Or when trading on a sub-account _" +
+            "Ru:Вы можете установить код клиента, если этого требует Ваш брокер (БКС / ВТБ / etc). Или когда торгуете на саб-счёте _");
+
+        public string Label122 => OsLocalization.ConvertToLocString(
+            "Eng:Value type_" +
+            "Ru:Тип переменной_");
+
+        public string Label123 => OsLocalization.ConvertToLocString(
+            "Eng:Seconds shift_" +
+            "Ru:Сдвиг секунд_");
+
+        public string Label124 => OsLocalization.ConvertToLocString(
+            "Eng:Forced start from zero_" +
+            "Ru:Перезапуск сборки с нуля_");
+
+        public string Label125 => OsLocalization.ConvertToLocString(
+            "Eng:Candles count in day_" +
+            "Ru:Кол-во свечей за день_");
+
+        public string Label126 => OsLocalization.ConvertToLocString(
+            "Eng:Adaptive days look back_" +
+            "Ru:Адаптируем за кол-во дней_");
+
+        public string Label127 => OsLocalization.ConvertToLocString(
+           "Eng:Min move volatility mult_" +
+           "Ru:Мин. движение. Множитель волатильности_");
+
+        public string Label128 => OsLocalization.ConvertToLocString(
+           "Eng:Back move volatility mult_" +
+           "Ru:Откат. Множитель волатильности_");
+
+        public string Label129 => OsLocalization.ConvertToLocString(
+           "Eng:Vertical segments of volatility_" +
+           "Ru:Вертикальных отрезков волатильности_");
+
+        public string Label130 => OsLocalization.ConvertToLocString(
+           "Eng:Remove trades from memory_" +
+           "Ru:Удалять трейды из памяти_");
+
+        public string Label131 => OsLocalization.ConvertToLocString(
+           "Eng:The button opens the window of securities settings that the connector has. Here you can configure price accuracy, volume accuracy, etc._" +
+           "Ru:Кнопка открывает окно настроек бумаг, которые есть у коннектора. Здесь можно настроить точность цены, точность объёма и т.д._");
+
         public string LabelComissionType => OsLocalization.ConvertToLocString(
             "Eng:Comission type_" +
             "Ru:Тип комиссии_");
@@ -613,6 +657,7 @@ namespace OsEngine.Language
         public string Message24 => OsLocalization.ConvertToLocString(
             "Eng: Cancel order - _" +
             "Ru: Отзываем ордер - _");
+
 
         public string TitleAServerParametrUi => OsLocalization.ConvertToLocString(
             "Eng:Connection settings _" +
@@ -940,6 +985,10 @@ namespace OsEngine.Language
            "Eng:In incoming securities, missing Name_" +
            "Ru:Во входящих бумагах, отсутствуют Name_");
 
+        public string Message99 => OsLocalization.ConvertToLocString(
+            "Eng:Intercepted attempt to revoke an order when the connection is off!_" +
+            "Ru:Перехвачена попытка отозвать ордер при выключенном соединении!_");
+
         public string TitleTester => OsLocalization.ConvertToLocString(
             "Eng:Exchange emulator_" +
             "Ru:Эмулятор биржи_");
@@ -979,6 +1028,11 @@ namespace OsEngine.Language
         public string ServerParamToken => OsLocalization.ConvertToLocString(
             "Eng:Token_" +
             "Ru:Token_");
+
+        public string Memo => OsLocalization.ConvertToLocString(
+            "Eng:Memo_" +
+            "Ru:Memo_");
+
         public string ServerParamSubscription => OsLocalization.ConvertToLocString(
             "Eng:Paid subscription_" +
             "Ru:Платная подписка_");
@@ -1034,6 +1088,10 @@ namespace OsEngine.Language
         public string ServerParam11 => OsLocalization.ConvertToLocString(
           "Eng:Skip trades with the same price_" +
           "Ru:Пропускать сделки с одинаковой ценой_");
+
+        public string ServerParam12 => OsLocalization.ConvertToLocString(
+          "Eng:View securities_" +
+          "Ru:Просмотр бумаг_");
 
         public string UseStock => OsLocalization.ConvertToLocString(
             "Eng:Stock_" +

@@ -25,6 +25,11 @@ using OsEngine.PrimeSettings;
 using OsEngine.Layout;
 using System.Collections.Generic;
 using OsEngine.Entity;
+using System.Globalization;
+using OsEngine.Logging;
+using System.Net.Sockets;
+using System.Net;
+using System.Text;
 
 namespace OsEngine
 {
@@ -106,6 +111,8 @@ namespace OsEngine
             _window = this;
 
             ServerMaster.ActivateLogging();
+
+            Thread.CurrentThread.CurrentCulture = OsLocalization.CurCulture;
 
             Task task = new Task(ThreadAreaGreeting);
             task.Start();
@@ -378,6 +385,14 @@ namespace OsEngine
         {
             string message = OsLocalization.MainWindow.Message5 + e.ExceptionObject;
 
+            message = _startProgram + "  " + message;
+
+            message = System.Reflection.Assembly.GetExecutingAssembly() + "\n" + message;
+
+            _messageToCrashServer = "Crash% " + message;
+            Thread worker = new Thread(SendMessageInCrashServer);
+            worker.Start();
+
             if (PrimeSettingsMaster.RebootTradeUiLigth == true &&
                 RobotUiLight.IsRobotUiLightStart)
             {
@@ -388,6 +403,8 @@ namespace OsEngine
                 MessageBox.Show(message);
             }
         }
+
+        private StartProgram _startProgram;
 
         private void Reboot(string message)
         {
@@ -414,6 +431,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsTester;
                 Hide();
                 TesterUi candleOneUi = new TesterUi();
                 candleOneUi.ShowDialog();
@@ -432,6 +450,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsTester;
                 Hide();
                 TesterUiLight candleOneUi = new TesterUiLight();
                 candleOneUi.ShowDialog();
@@ -450,6 +469,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsOsTrader;
                 Hide();
                 RobotUi candleOneUi = new RobotUi();
                 candleOneUi.ShowDialog();
@@ -468,6 +488,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsOsTrader;
                 Hide();
                 RobotUiLight candleOneUi = new RobotUiLight();
                 candleOneUi.ShowDialog();
@@ -486,6 +507,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsOsData;
                 Hide();
                 OsDataUi ui = new OsDataUi();
                 ui.ShowDialog();
@@ -504,6 +526,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsOsConverter;
                 Hide();
                 OsConverterUi ui = new OsConverterUi();
                 ui.ShowDialog();
@@ -522,6 +545,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsOsOptimizer;
                 Hide();
                 OptimizerUi ui = new OptimizerUi();
                 ui.ShowDialog();
@@ -540,6 +564,7 @@ namespace OsEngine
         {
             try
             {
+                _startProgram = StartProgram.IsOsMiner;
                 Hide();
                 OsMinerUi ui = new OsMinerUi();
                 ui.ShowDialog();
@@ -689,6 +714,30 @@ namespace OsEngine
                     }
 
                 }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        string _messageToCrashServer;
+
+        private void SendMessageInCrashServer()
+        {
+            try
+            {
+                if(PrimeSettingsMaster.ReportCriticalErrors == false)
+                {
+                    return;
+                }
+
+                TcpClient newClient = new TcpClient();
+                newClient.Connect("195.133.196.183", 11000);
+                NetworkStream tcpStream = newClient.GetStream();
+                byte[] sendBytes = Encoding.UTF8.GetBytes(_messageToCrashServer);
+                tcpStream.Write(sendBytes, 0, sendBytes.Length);
+                newClient.Close();
             }
             catch
             {
